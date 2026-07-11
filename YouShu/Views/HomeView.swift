@@ -1,0 +1,332 @@
+//
+//  HomeView.swift
+//  YouShu
+//
+
+import SwiftUI
+import SwiftData
+
+struct HomeView: View {
+    @Environment(\.modelContext) private var modelContext
+
+    @Query private var transactions: [Transaction]
+    @Query(sort: \Account.createdAt) private var accounts: [Account]
+
+    @State private var showAddTransaction: Bool = false
+
+    private var totalBalance: Double {
+        accounts.reduce(0) { $0 + $1.balance }
+    }
+
+    private var currentMonthTransactions: [Transaction] {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else {
+            return []
+        }
+        return transactions.filter { $0.date >= startOfMonth }
+    }
+
+    private var monthlyIncome: Double {
+        currentMonthTransactions
+            .filter { $0.type == .income }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    private var monthlyExpense: Double {
+        currentMonthTransactions
+            .filter { $0.type == .expense }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    private var monthlyBalance: Double {
+        monthlyIncome - monthlyExpense
+    }
+
+    private var recentTransactions: [Transaction] {
+        let sorted = transactions.sorted { $0.date > $1.date }
+        return Array(sorted.prefix(10))
+    }
+
+    private var groupedTransactions: [(date: String, items: [Transaction])] {
+        let calendar = Calendar.current
+        var groups: [(date: String, items: [Transaction])] = []
+        let today = calendar.startOfDay(for: Date())
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+
+        for tx in recentTransactions {
+            let txDay = calendar.startOfDay(for: tx.date)
+            let label: String
+            if txDay == today {
+                label = "今天"
+            } else if txDay == yesterday {
+                label = "昨天"
+            } else {
+                let f = DateFormatter()
+                f.dateFormat = "M月d日 EEEE"
+                label = f.string(from: tx.date)
+            }
+
+            if let index = groups.firstIndex(where: { $0.date == label }) {
+                groups[index].items.append(tx)
+            } else {
+                groups.append((date: label, items: [tx]))
+            }
+        }
+        return groups
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                // Monthly summary
+                Section {
+                    monthlySummaryCard
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+
+                    if !accounts.isEmpty {
+                        accountsSummaryView
+                            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
+                            .listRowBackground(Color.clear)
+                    }
+
+                    quickAddButton
+                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+                }
+
+                // Recent transactions
+                if recentTransactions.isEmpty {
+                    Section {
+                        emptyState
+                            .listRowBackground(Color.clear)
+                    } header: {
+                        Text("最近交易")
+                    }
+                } else {
+                    ForEach(groupedTransactions, id: \.date) { group in
+                        Section {
+                            ForEach(group.items) { transaction in
+                                transactionRow(transaction)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            deleteTransaction(transaction)
+                                        } label: {
+                                            Label("删除", systemImage: "trash")
+                                        }
+                                    }
+                            }
+                        } header: {
+                            HStack {
+                                Text(group.date)
+                                Spacer()
+                                Text("\(group.items.count) 笔")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("有数")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAddTransaction = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                }
+            }
+            .sheet(isPresented: $showAddTransaction) {
+                AddTransactionView()
+            }
+        }
+    }
+
+    // MARK: - Monthly Summary
+
+    private var monthlySummaryCard: some View {
+        let dateFormatter: DateFormatter = {
+            let f = DateFormatter()
+            f.dateFormat = "M月"
+            return f
+        }()
+
+        return VStack(spacing: 0) {
+            Text("\(dateFormatter.string(from: Date())) 财务概览")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.top, 4)
+
+            HStack(spacing: 0) {
+                summaryItem(title: "收入", amount: monthlyIncome, color: .green)
+                summaryDivider
+                summaryItem(title: "支出", amount: monthlyExpense, color: .red)
+                summaryDivider
+                summaryItem(title: "结余", amount: monthlyBalance, color: monthlyBalance >= 0 ? .blue : .red)
+            }
+            .padding(.vertical, 12)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func summaryItem(title: String, amount: Double, color: Color) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("¥\(String(format: "%.0f", amount))")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var summaryDivider: some View {
+        Rectangle()
+            .fill(Color(.systemGray5))
+            .frame(width: 1, height: 36)
+    }
+
+    // MARK: - Accounts Summary
+
+    private var accountsSummaryView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("账户总资产")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("¥\(String(format: "%.2f", totalBalance))")
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .foregroundColor(totalBalance >= 0 ? .green : .red)
+            }
+
+            if accounts.count > 1 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(accounts) { account in
+                            VStack(spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: account.icon)
+                                        .font(.system(size: 10))
+                                    Text(account.name)
+                                        .font(.system(size: 11))
+                                }
+                                .foregroundColor(.secondary)
+                                Text("¥\(String(format: "%.0f", account.balance))")
+                                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color(.systemGray6))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Quick Add Button
+
+    private var quickAddButton: some View {
+        Button {
+            showAddTransaction = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .bold))
+                Text("记一笔")
+                    .font(.system(size: 16, weight: .medium))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.accentColor)
+            )
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "tray")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary.opacity(0.5))
+            Text("还没有交易记录")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Text("点击下方按钮记第一笔账")
+                .font(.caption)
+                .foregroundColor(.secondary.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 48)
+    }
+
+    private func transactionRow(_ transaction: Transaction) -> some View {
+        let isExpense = transaction.type == .expense
+
+        return HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill((transaction.category?.color ?? Color(.systemGray4)).opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: transaction.category?.icon ?? "questionmark.circle")
+                    .font(.system(size: 16))
+                    .foregroundColor(transaction.category?.color ?? Color(.systemGray))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(transaction.category?.name ?? "未分类")
+                    .font(.system(size: 15, weight: .medium))
+                if !transaction.note.isEmpty && transaction.note.trimmingCharacters(in: .whitespaces).count > 0 {
+                    Text(transaction.note)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(isExpense
+                     ? "-¥\(String(format: "%.2f", transaction.amount))"
+                     : "+¥\(String(format: "%.2f", transaction.amount))")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundColor(isExpense ? .red : .green)
+                Text(transaction.date, format: .dateTime.hour().minute())
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    // MARK: - Delete
+
+    private func deleteTransaction(_ transaction: Transaction) {
+        if let account = transaction.account {
+            account.balance -= transaction.signedAmount
+        }
+        modelContext.delete(transaction)
+        try? modelContext.save()
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+    }
+}
+
+#Preview {
+    HomeView()
+        .modelContainer(for: [Transaction.self, Category.self, Account.self], inMemory: true)
+}

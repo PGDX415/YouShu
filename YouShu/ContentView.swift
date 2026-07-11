@@ -2,54 +2,83 @@
 //  ContentView.swift
 //  YouShu
 //
-//  Created by Paul Dexin Gong on 2026/7/11.
-//
 
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    @State private var selectedTab: Tab = .home
+
+    enum Tab: String, CaseIterable {
+        case home = "首页"
+        case reports = "报表"
+        case settings = "设置"
+
+        var icon: String {
+            switch self {
+            case .home: return "house.fill"
+            case .reports: return "chart.bar.fill"
+            case .settings: return "gearshape.fill"
+            }
+        }
+    }
 
     var body: some View {
+        if horizontalSizeClass == .regular {
+            iPadLayout
+        } else {
+            iPhoneLayout
+        }
+    }
+
+    // MARK: - iPhone Layout (TabView)
+
+    private var iPhoneLayout: some View {
+        TabView(selection: $selectedTab) {
+            HomeView()
+                .tabItem { Label(Tab.home.rawValue, systemImage: Tab.home.icon) }
+                .tag(Tab.home)
+
+            ReportsView()
+                .tabItem { Label(Tab.reports.rawValue, systemImage: Tab.reports.icon) }
+                .tag(Tab.reports)
+
+            SettingsView()
+                .tabItem { Label(Tab.settings.rawValue, systemImage: Tab.settings.icon) }
+                .tag(Tab.settings)
+        }
+    }
+
+    // MARK: - iPad Layout (NavigationSplitView)
+
+    private var iPadLayout: some View {
         NavigationSplitView {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
+                ForEach(Tab.allCases, id: \.self) { tab in
+                    Button {
+                        selectedTab = tab
                     } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+                        Label(tab.rawValue, systemImage: tab.icon)
+                            .foregroundColor(selectedTab == tab ? .accentColor : .primary)
                     }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
+                    .listRowBackground(
+                        selectedTab == tab
+                            ? Color.accentColor.opacity(0.1)
+                            : Color.clear
+                    )
                 }
             }
+            .navigationTitle("有数")
         } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            switch selectedTab {
+            case .home:
+                HomeView()
+            case .reports:
+                ReportsView()
+            case .settings:
+                SettingsView()
             }
         }
     }
@@ -57,5 +86,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: [Transaction.self, Category.self, Account.self], inMemory: true)
 }
