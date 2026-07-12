@@ -8,6 +8,8 @@ import SwiftData
 
 @main
 struct YouShuApp: App {
+    @State private var showSplash = true
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Transaction.self,
@@ -49,7 +51,16 @@ struct YouShuApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ZStack {
+                if showSplash {
+                    SplashView(isActive: $showSplash)
+                        .transition(.opacity)
+                } else {
+                    ContentView()
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.5), value: showSplash)
         }
         .modelContainer(sharedModelContainer)
     }
