@@ -117,6 +117,8 @@ struct CategoryManageView: View {
                 sortOrder: categories.filter { $0.type == type }.count,
                 isPreset: false
             )
+            modelContext.insert(category)
+            try? modelContext.save()
             editingCategory = category
         } label: {
             Label("添加\(type.displayName)分类", systemImage: "plus.circle")

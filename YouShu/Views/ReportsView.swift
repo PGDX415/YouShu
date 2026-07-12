@@ -168,61 +168,78 @@ struct ReportsView: View {
 
             Chart {
                 ForEach(monthlyData) { item in
+                    // 收入曲线 & 面积
                     LineMark(
                         x: .value("月份", item.month.shortMonthString),
-                        y: .value("收入", item.income)
+                        y: .value("金额", item.income),
+                        series: .value("类型", "收入")
                     )
-                    .foregroundStyle(.green)
-                    .interpolationMethod(.catmullRom)
-                    .symbol(Circle().strokeBorder(lineWidth: 2))
-
-                    LineMark(
-                        x: .value("月份", item.month.shortMonthString),
-                        y: .value("支出", item.expense)
-                    )
-                    .foregroundStyle(.red)
+                    .foregroundStyle(by: .value("类型", "收入"))
                     .interpolationMethod(.catmullRom)
                     .symbol(Circle().strokeBorder(lineWidth: 2))
 
                     AreaMark(
                         x: .value("月份", item.month.shortMonthString),
-                        y: .value("收入", item.income)
+                        y: .value("金额", item.income),
+                        series: .value("类型", "收入-面积")
                     )
-                    .foregroundStyle(.green.opacity(0.1))
+                    .foregroundStyle(by: .value("类型", "收入-面积"))
                     .interpolationMethod(.catmullRom)
+
+                    // 支出曲线 & 面积
+                    LineMark(
+                        x: .value("月份", item.month.shortMonthString),
+                        y: .value("金额", -item.expense),
+                        series: .value("类型", "支出")
+                    )
+                    .foregroundStyle(by: .value("类型", "支出"))
+                    .interpolationMethod(.catmullRom)
+                    .symbol(Circle().strokeBorder(lineWidth: 2))
 
                     AreaMark(
                         x: .value("月份", item.month.shortMonthString),
-                        y: .value("支出", item.expense)
+                        y: .value("金额", -item.expense),
+                        series: .value("类型", "支出-面积")
                     )
-                    .foregroundStyle(.red.opacity(0.1))
+                    .foregroundStyle(by: .value("类型", "支出-面积"))
                     .interpolationMethod(.catmullRom)
                 }
             }
+            .chartForegroundStyleScale([
+                "收入": Color.green,
+                "收入-面积": Color.green.opacity(0.15),
+                "支出": Color.red,
+                "支出-面积": Color.red.opacity(0.15),
+            ])
+            .chartLegend(.hidden)
             .chartYAxis {
-                AxisMarks(position: .leading)
+                AxisMarks(position: .leading) { value in
+                    AxisValueLabel {
+                        if let amount = value.as(Double.self) {
+                            Text("¥\(Int(amount))")
+                        }
+                    }
+                }
             }
-            .frame(height: 220)
+            .frame(height: 250)
             .padding(.horizontal, 8)
 
             HStack(spacing: 24) {
-                legend(color: .green, label: "收入")
-                legend(color: .red, label: "支出")
+                HStack(spacing: 6) {
+                    Circle().fill(.green).frame(width: 8, height: 8)
+                    Text("收入").font(.caption).foregroundColor(.secondary)
+                }
+                HStack(spacing: 6) {
+                    Circle().fill(.red).frame(width: 8, height: 8)
+                    Text("支出").font(.caption).foregroundColor(.secondary)
+                }
             }
-            .font(.caption)
             .padding(.horizontal, 16)
         }
         .padding(.vertical, 16)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 16)
-    }
-
-    private func legend(color: Color, label: String) -> some View {
-        HStack(spacing: 4) {
-            Circle().fill(color).frame(width: 8, height: 8)
-            Text(label).foregroundColor(.secondary)
-        }
     }
 
     // MARK: - Category Pie

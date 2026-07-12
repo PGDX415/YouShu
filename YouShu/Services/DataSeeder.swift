@@ -8,13 +8,18 @@ import SwiftData
 
 enum DataSeeder {
     private static let hasSeededKey = "com.gongdexin.paul.YouShu.hasSeededDefaults"
-    private static let hasDedupedKey = "com.gongdexin.paul.YouShu.hasDedupedCategories"
+    private static let hasDedupedCategoriesKey = "com.gongdexin.paul.YouShu.hasDedupedCategories"
+    private static let hasDedupedAccountsKey = "com.gongdexin.paul.YouShu.hasDedupedAccounts"
 
     static func seedIfNeeded(modelContext: ModelContext) {
         // Deduplicate existing data (one-time cleanup)
-        if !UserDefaults.standard.bool(forKey: hasDedupedKey) {
+        if !UserDefaults.standard.bool(forKey: hasDedupedCategoriesKey) {
             deduplicateCategories(modelContext: modelContext)
-            UserDefaults.standard.set(true, forKey: hasDedupedKey)
+            UserDefaults.standard.set(true, forKey: hasDedupedCategoriesKey)
+        }
+        if !UserDefaults.standard.bool(forKey: hasDedupedAccountsKey) {
+            deduplicateAccounts(modelContext: modelContext)
+            UserDefaults.standard.set(true, forKey: hasDedupedAccountsKey)
         }
 
         guard !UserDefaults.standard.bool(forKey: hasSeededKey) else { return }
@@ -46,6 +51,32 @@ enum DataSeeder {
         for cat in toDelete {
             modelContext.delete(cat)
         }
+        try? modelContext.save()
+    }
+
+    /// Keep only the oldest seeded account as default; mark all others non-default
+    /// and remove duplicate "现金" accounts.
+    private static func deduplicateAccounts(modelContext: ModelContext) {
+        let descriptor = FetchDescriptor<Account>(sortBy: [SortDescriptor(\Account.createdAt)])
+        guard let allAccounts = try? modelContext.fetch(descriptor) else { return }
+
+        // Deduplicate seeded "现金" accounts — keep the oldest one
+        let cashAccounts = allAccounts.filter { $0.name == "现金" }
+        if cashAccounts.count > 1 {
+            // Keep the first (oldest), delete the rest
+            for dup in cashAccounts.dropFirst() {
+                modelContext.delete(dup)
+            }
+        }
+
+        // Mark only the oldest "现金" account as default; all others non-default
+        if let firstCash = cashAccounts.first {
+            firstCash.isDefault = true
+        }
+        for acc in allAccounts where acc !== cashAccounts.first {
+            acc.isDefault = false
+        }
+
         try? modelContext.save()
     }
 
