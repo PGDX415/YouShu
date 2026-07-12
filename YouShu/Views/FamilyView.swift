@@ -15,6 +15,11 @@ struct FamilyView: View {
     @State private var showCreateSheet = false
     @State private var newLedgerName = ""
     @State private var showDeleteAlert = false
+    @State private var editingMember: FamilyMember?
+    @State private var editingLedgerName = false
+    @State private var ledgerNameText = ""
+    @State private var showRemoveMemberAlert = false
+    @State private var memberToRemove: FamilyMember?
 
     private var currentLedger: FamilyLedger? {
         ledgers.first
@@ -30,13 +35,25 @@ struct FamilyView: View {
                 // Ledger info
                 Section {
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(ledger.name)
-                                .font(.headline)
-                            Text("创建于 \(ledger.createdAt, format: .dateTime.year().month().day())")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        Button {
+                            ledgerNameText = ledger.name
+                            editingLedgerName = true
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Text(ledger.name)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                    Image(systemName: "pencil")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Text("创建于 \(ledger.createdAt, format: .dateTime.year().month().day())")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
+                        .buttonStyle(.plain)
                         Spacer()
                     }
 
@@ -56,27 +73,49 @@ struct FamilyView: View {
                 // Members
                 Section {
                     ForEach(currentMembers) { member in
-                        HStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(member.role == .creator ? Color.accentColor : Color(.systemGray4))
-                                    .frame(width: 36, height: 36)
-                                Text(member.avatarInitial.isEmpty
-                                     ? String(member.name.prefix(1))
-                                     : member.avatarInitial)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.white)
-                            }
+                        Button {
+                            editingMember = member
+                        } label: {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(member.role == .creator ? Color.accentColor : Color(.systemGray4))
+                                        .frame(width: 36, height: 36)
+                                    Text(member.avatarInitial.isEmpty
+                                         ? String(member.name.prefix(1))
+                                         : member.avatarInitial)
+                                        .font(member.avatarInitial.count <= 2
+                                              ? .system(size: 20)
+                                              : .system(size: 14, weight: .medium))
+                                        .foregroundColor(.white)
+                                }
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(member.name)
-                                    .font(.subheadline)
-                                Text(member.role == .creator ? "创建者" : "成员")
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(member.name)
+                                        .font(.subheadline)
+                                        .foregroundColor(.primary)
+                                    Text(member.role == .creator ? "创建者" : "成员")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .padding(.vertical, 2)
                         }
-                        .padding(.vertical, 2)
+                        .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing) {
+                            if member.role != .creator {
+                                Button(role: .destructive) {
+                                    memberToRemove = member
+                                    showRemoveMemberAlert = true
+                                } label: {
+                                    Label("移除", systemImage: "person.slash")
+                                }
+                            }
+                        }
                     }
 
                     if currentMembers.isEmpty {
@@ -130,11 +169,29 @@ struct FamilyView: View {
         .sheet(isPresented: $showCreateSheet) {
             createLedgerSheet
         }
+        .sheet(item: $editingMember) { member in
+            MemberEditView(member: member) {
+                try? modelContext.save()
+            }
+        }
+        .sheet(isPresented: $editingLedgerName) {
+            ledgerNameEditSheet
+        }
         .alert("删除家庭账本", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) { deleteLedger() }
         } message: {
             Text("删除后所有成员的共享数据将丢失。")
+        }
+        .alert("移除成员", isPresented: $showRemoveMemberAlert) {
+            Button("取消", role: .cancel) {}
+            Button("移除", role: .destructive) { removeMember() }
+        } message: {
+            if let member = memberToRemove {
+                Text("确定要将「\(member.name)」从家庭账本中移除吗？该成员的所有交易记录将保留。")
+            } else {
+                Text("确定要移除该成员吗？")
+            }
         }
     }
 
@@ -174,6 +231,38 @@ struct FamilyView: View {
         .presentationDetents([.medium])
     }
 
+    // MARK: - Edit Ledger Name
+
+    private var ledgerNameEditSheet: some View {
+        NavigationStack {
+            Form {
+                Section("账本名称") {
+                    TextField("输入新名称", text: $ledgerNameText)
+                }
+            }
+            .navigationTitle("编辑名称")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("取消") { editingLedgerName = false }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("保存") {
+                        let trimmed = ledgerNameText.trimmingCharacters(in: .whitespaces)
+                        if !trimmed.isEmpty, let ledger = currentLedger {
+                            ledger.name = trimmed
+                            try? modelContext.save()
+                        }
+                        editingLedgerName = false
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(ledgerNameText.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.height(180)])
+    }
+
     // MARK: - Actions
 
     private func createLedger() {
@@ -197,6 +286,13 @@ struct FamilyView: View {
         guard let ledger = currentLedger else { return }
         modelContext.delete(ledger)
         try? modelContext.save()
+    }
+
+    private func removeMember() {
+        guard let member = memberToRemove else { return }
+        modelContext.delete(member)
+        try? modelContext.save()
+        memberToRemove = nil
     }
 
 }

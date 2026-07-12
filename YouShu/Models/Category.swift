@@ -21,6 +21,9 @@ final class Category {
     @Relationship(deleteRule: .nullify, inverse: \Transaction.category)
     var transactions: [Transaction]? = []
 
+    @Relationship(deleteRule: .cascade, inverse: \Budget.category)
+    var budgets: [Budget]? = []
+
     var type: TransactionType {
         get { TransactionType(rawValue: typeRaw) ?? .expense }
         set { typeRaw = newValue.rawValue }

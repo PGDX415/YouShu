@@ -18,14 +18,20 @@ extension Date {
         Calendar.current.date(from: Calendar.current.dateComponents([.year], from: self))!
     }
 
+    private static var formatterLocale: Locale {
+        Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
+    }
+
     var monthYearString: String {
         let f = DateFormatter()
+        f.locale = Self.formatterLocale
         f.dateFormat = "yyyy年M月"
         return f.string(from: self)
     }
 
     var shortMonthString: String {
         let f = DateFormatter()
+        f.locale = Self.formatterLocale
         f.dateFormat = "M月"
         return f.string(from: self)
     }

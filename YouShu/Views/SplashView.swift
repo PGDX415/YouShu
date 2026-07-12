@@ -90,11 +90,11 @@ struct SplashView: View {
                     .offset(y: titleOffset)
                     .opacity(titleOpacity)
 
-                // Tagline
-                Text("家庭记账 · 智慧理财")
+                // Tagline — slogan
+                Text("有数，家的每一笔，心里有数")
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.6))
-                    .tracking(4)
+                    .tracking(2)
                     .padding(.top, 12)
                     .opacity(titleOpacity)
 

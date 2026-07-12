@@ -8,19 +8,11 @@ import SwiftData
 
 enum DataSeeder {
     private static let hasSeededKey = "com.gongdexin.paul.YouShu.hasSeededDefaults"
-    private static let hasDedupedCategoriesKey = "com.gongdexin.paul.YouShu.hasDedupedCategories"
-    private static let hasDedupedAccountsKey = "com.gongdexin.paul.YouShu.hasDedupedAccounts"
 
     static func seedIfNeeded(modelContext: ModelContext) {
-        // Deduplicate existing data (one-time cleanup)
-        if !UserDefaults.standard.bool(forKey: hasDedupedCategoriesKey) {
-            deduplicateCategories(modelContext: modelContext)
-            UserDefaults.standard.set(true, forKey: hasDedupedCategoriesKey)
-        }
-        if !UserDefaults.standard.bool(forKey: hasDedupedAccountsKey) {
-            deduplicateAccounts(modelContext: modelContext)
-            UserDefaults.standard.set(true, forKey: hasDedupedAccountsKey)
-        }
+        // Always deduplicate — CloudKit sync from other devices can reintroduce duplicates.
+        deduplicateCategories(modelContext: modelContext)
+        deduplicateAccounts(modelContext: modelContext)
 
         guard !UserDefaults.standard.bool(forKey: hasSeededKey) else { return }
 

@@ -39,14 +39,27 @@ enum ReportPeriod: String, CaseIterable {
 
 struct ReportsView: View {
     @Query private var transactions: [Transaction]
+    @Query private var members: [FamilyMember]
     @State private var period: ReportPeriod = .month
     @State private var selectedCategory: Category?
+    @State private var showMemberOnly: Bool = false
+
+    private var currentMember: FamilyMember? {
+        members.first(where: { $0.role == .creator })
+    }
+
+    private var filteredTransactions: [Transaction] {
+        if showMemberOnly, let me = currentMember {
+            return transactions.filter { $0.createdByMember?.id == me.id }
+        }
+        return transactions
+    }
 
     private var monthlyData: [MonthlySummary] {
         let months = Date.monthsBack(from: Date(), count: period.monthCount)
         return months.map { monthStart in
             let monthEnd = monthStart.endOfMonth
-            let monthTxns = transactions.filter { $0.date >= monthStart && $0.date <= monthEnd }
+            let monthTxns = filteredTransactions.filter { $0.date >= monthStart && $0.date <= monthEnd }
             return MonthlySummary(
                 month: monthStart,
                 income: monthTxns.filter { $0.type == .income }.reduce(0) { $0 + $1.amount },
@@ -64,7 +77,7 @@ struct ReportsView: View {
         case .year:
             start = now.startOfYear
         }
-        return transactions.filter { $0.type == .expense && $0.date >= start }
+        return filteredTransactions.filter { $0.type == .expense && $0.date >= start }
     }
 
     private var categoryBreakdown: [CategoryBreakdown] {
@@ -98,7 +111,7 @@ struct ReportsView: View {
         case .month: start = now.startOfMonth
         case .year: start = now.startOfYear
         }
-        return transactions.filter { $0.date >= start }
+        return filteredTransactions.filter { $0.date >= start }
     }
 
     private var periodLabel: String {
@@ -106,6 +119,7 @@ struct ReportsView: View {
         case .month: return Date().monthYearString
         case .year:
             let f = DateFormatter()
+            f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
             f.dateFormat = "yyyy年"
             return f.string(from: Date())
         }
@@ -142,6 +156,25 @@ struct ReportsView: View {
                     .foregroundColor(.secondary)
             }
             Spacer()
+            if currentMember != nil {
+                Button {
+                    withAnimation {
+                        showMemberOnly.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: showMemberOnly ? "person.fill" : "person.3.fill")
+                            .font(.system(size: 12))
+                        Text(showMemberOnly ? "仅我" : "全部")
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundColor(showMemberOnly ? .white : .accentColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(showMemberOnly ? Color.accentColor : Color(.systemGray6))
+                    .clipShape(Capsule())
+                }
+            }
         }
         .padding(.horizontal, 20)
     }

@@ -10,6 +10,10 @@ import SwiftData
 struct YouShuApp: App {
     @State private var showSplash = true
 
+    private var systemLocale: Locale {
+        Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Transaction.self,
@@ -17,6 +21,7 @@ struct YouShuApp: App {
             Account.self,
             FamilyLedger.self,
             FamilyMember.self,
+            Budget.self,
         ])
 
         let cloudKitContainerID = "iCloud.com.gongdexin.paul.YouShu"
@@ -58,6 +63,8 @@ struct YouShuApp: App {
                 } else {
                     ContentView()
                         .transition(.opacity)
+                        .environment(\.locale, systemLocale)
+                        .environment(\.calendar, Calendar.current)
                 }
             }
             .animation(.easeInOut(duration: 0.5), value: showSplash)

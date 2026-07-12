@@ -13,8 +13,11 @@ struct AddTransactionView: View {
     @Query(sort: \Category.sortOrder) private var allCategories: [Category]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    @Query private var members: [FamilyMember]
 
     @AppStorage("recentAmounts") private var recentAmountsJSON: String = "[]"
+
+    let editingTransaction: Transaction?
 
     @State private var amountText: String = ""
     @State private var selectedType: TransactionType = .expense
@@ -24,8 +27,20 @@ struct AddTransactionView: View {
     @State private var date: Date = Date()
     @State private var showOptionalFields: Bool = false
     @State private var showSaveAnimation: Bool = false
+    @State private var showDatePicker = false
 
     @FocusState private var isAmountFocused: Bool
+
+    private var isEditing: Bool { editingTransaction != nil }
+
+    /// The current user's FamilyMember record (the creator of the ledger).
+    private var currentMember: FamilyMember? {
+        members.first(where: { $0.role == .creator })
+    }
+
+    init(editingTransaction: Transaction? = nil) {
+        self.editingTransaction = editingTransaction
+    }
 
     private var amount: Double {
         Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0
@@ -33,6 +48,13 @@ struct AddTransactionView: View {
 
     private var canSave: Bool {
         amount > 0 && selectedCategory != nil
+    }
+
+    private var formattedDate: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
+        f.dateFormat = "yyyy年M月d日 HH:mm"
+        return f.string(from: date)
     }
 
     private var filteredCategories: [Category] {
@@ -93,7 +115,7 @@ struct AddTransactionView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .navigationTitle("记一笔")
+            .navigationTitle(isEditing ? "编辑" : "记一笔")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -103,13 +125,45 @@ struct AddTransactionView: View {
                 }
             }
             .onAppear {
-                isAmountFocused = true
-                selectedAccount = accounts.first(where: { $0.isDefault }) ?? accounts.first
+                if let tx = editingTransaction {
+                    amountText = String(format: "%.2f", tx.amount)
+                    selectedType = tx.type
+                    selectedCategory = tx.category
+                    selectedAccount = tx.account
+                    note = tx.note
+                    date = tx.date
+                    showOptionalFields = !tx.note.isEmpty || tx.account != nil
+                } else {
+                    isAmountFocused = true
+                    selectedAccount = accounts.first(where: { $0.isDefault }) ?? accounts.first
+                }
             }
             .overlay {
                 if showSaveAnimation {
                     saveSuccessOverlay
                 }
+            }
+            .sheet(isPresented: $showDatePicker) {
+                VStack {
+                    UIKitDatePicker(selection: $date)
+                        .padding()
+
+                    HStack {
+                        Spacer()
+                        Button("确定") {
+                            showDatePicker = false
+                        }
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        Spacer()
+                    }
+                    .padding(.bottom, 20)
+                }
+                .presentationDetents([.medium])
             }
         }
     }
@@ -370,8 +424,12 @@ struct AddTransactionView: View {
                         Image(systemName: "calendar")
                             .frame(width: 24)
                             .foregroundColor(.secondary)
-                        DatePicker("日期", selection: $date, displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
+                        Button {
+                            showDatePicker = true
+                        } label: {
+                            Text(formattedDate)
+                                .foregroundColor(.primary)
+                        }
                         Spacer()
                     }
                 }
@@ -390,7 +448,7 @@ struct AddTransactionView: View {
         Button {
             saveTransaction()
         } label: {
-            Text("完成")
+            Text(isEditing ? "保存修改" : "完成")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
@@ -409,19 +467,39 @@ struct AddTransactionView: View {
     private func saveTransaction() {
         guard canSave else { return }
 
-        let transaction = Transaction(
-            amount: amount,
-            type: selectedType,
-            date: date,
-            note: note.trimmingCharacters(in: .whitespaces),
-            category: selectedCategory,
-            account: selectedAccount
-        )
-        modelContext.insert(transaction)
+        if let tx = editingTransaction {
+            // Revert old account balance
+            if let oldAccount = tx.account {
+                oldAccount.balance -= tx.signedAmount
+            }
 
-        // Update account balance
-        if let account = selectedAccount {
-            account.balance += transaction.signedAmount
+            // Update transaction
+            tx.amount = amount
+            tx.typeRaw = selectedType.rawValue
+            tx.date = date
+            tx.note = note.trimmingCharacters(in: .whitespaces)
+            tx.category = selectedCategory
+            tx.account = selectedAccount
+
+            // Apply new account balance
+            if let account = selectedAccount {
+                account.balance += tx.signedAmount
+            }
+        } else {
+            let transaction = Transaction(
+                amount: amount,
+                type: selectedType,
+                date: date,
+                note: note.trimmingCharacters(in: .whitespaces),
+                category: selectedCategory,
+                account: selectedAccount,
+                createdByMember: currentMember
+            )
+            modelContext.insert(transaction)
+
+            if let account = selectedAccount {
+                account.balance += transaction.signedAmount
+            }
         }
 
         try? modelContext.save()
@@ -463,7 +541,7 @@ struct AddTransactionView: View {
                     .font(.system(size: 56))
                     .foregroundColor(.green)
 
-                Text("已记录")
+                Text(isEditing ? "已更新" : "已记录")
                     .font(.title3.weight(.semibold))
                     .foregroundColor(.white)
 
@@ -476,6 +554,45 @@ struct AddTransactionView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20))
         }
         .transition(.opacity)
+    }
+}
+
+// MARK: - UIKit DatePicker (native system locale)
+
+struct UIKitDatePicker: UIViewRepresentable {
+    @Binding var selection: Date
+
+    func makeUIView(context: Context) -> UIDatePicker {
+        let picker = UIDatePicker()
+        picker.datePickerMode = .dateAndTime
+        picker.preferredDatePickerStyle = .inline
+        let lang = Locale.preferredLanguages.first ?? "zh-Hans"
+        picker.locale = Locale(identifier: lang)
+        picker.calendar = .autoupdatingCurrent
+        picker.addTarget(
+            context.coordinator,
+            action: #selector(Coordinator.dateChanged(_:)),
+            for: .valueChanged
+        )
+        return picker
+    }
+
+    func updateUIView(_ uiView: UIDatePicker, context: Context) {
+        uiView.date = selection
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject {
+        let parent: UIKitDatePicker
+        init(_ parent: UIKitDatePicker) {
+            self.parent = parent
+        }
+        @objc func dateChanged(_ sender: UIDatePicker) {
+            parent.selection = sender.date
+        }
     }
 }
 

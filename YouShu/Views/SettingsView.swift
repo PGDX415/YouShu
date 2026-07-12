@@ -22,6 +22,12 @@ struct SettingsView: View {
 
                 Section {
                     NavigationLink {
+                        BudgetManageView()
+                    } label: {
+                        Label("月度预算", systemImage: "chart.bar.doc.horizontal")
+                    }
+
+                    NavigationLink {
                         CategoryManageView()
                     } label: {
                         Label("分类管理", systemImage: "square.grid.2x2")
@@ -37,6 +43,12 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        PrivacyPolicyView()
+                    } label: {
+                        Label("隐私政策", systemImage: "hand.raised.fill")
+                    }
+
                     HStack {
                         Label("版本", systemImage: "info.circle")
                         Spacer()
@@ -45,6 +57,19 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("关于")
+                }
+
+                Section {
+                    VStack(spacing: 8) {
+                        Text("有数")
+                            .font(.system(.title3, design: .serif).weight(.bold))
+                        Text("有数，家的每一笔，心里有数")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .listRowBackground(Color.clear)
                 }
             }
             .navigationTitle("设置")

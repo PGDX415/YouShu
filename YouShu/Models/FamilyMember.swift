@@ -26,6 +26,9 @@ final class FamilyMember {
 
     var ledger: FamilyLedger?
 
+    @Relationship(deleteRule: .nullify, inverse: \Transaction.createdByMember)
+    var createdTransactions: [Transaction]? = []
+
     init(
         id: UUID = UUID(),
         name: String,

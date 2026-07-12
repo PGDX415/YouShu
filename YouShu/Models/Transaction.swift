@@ -18,6 +18,7 @@ final class Transaction {
     var category: Category?
     var account: Account?
     var ledger: FamilyLedger?
+    var createdByMember: FamilyMember?
 
     var type: TransactionType {
         get { TransactionType(rawValue: typeRaw) ?? .expense }
@@ -35,7 +36,8 @@ final class Transaction {
         date: Date = Date(),
         note: String = "",
         category: Category? = nil,
-        account: Account? = nil
+        account: Account? = nil,
+        createdByMember: FamilyMember? = nil
     ) {
         self.id = id
         self.amount = abs(amount)
@@ -44,5 +46,6 @@ final class Transaction {
         self.note = note
         self.category = category
         self.account = account
+        self.createdByMember = createdByMember
     }
 }

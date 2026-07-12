@@ -11,8 +11,27 @@ struct HomeView: View {
 
     @Query private var transactions: [Transaction]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query private var budgets: [Budget]
+    @Query private var members: [FamilyMember]
 
     @State private var showAddTransaction: Bool = false
+    @State private var editingTransaction: Transaction?
+    @State private var showFilter = false
+    @State private var showMemberOnly: Bool = false
+    @State private var showDeleteAlert = false
+    @State private var transactionToDelete: Transaction?
+
+    private var currentMember: FamilyMember? {
+        members.first(where: { $0.role == .creator })
+    }
+
+    /// Transactions filtered by member toggle
+    private var filteredTransactions: [Transaction] {
+        if showMemberOnly, let me = currentMember {
+            return transactions.filter { $0.createdByMember?.id == me.id }
+        }
+        return transactions
+    }
 
     private var totalBalance: Double {
         accounts.reduce(0) { $0 + $1.balance }
@@ -24,7 +43,7 @@ struct HomeView: View {
         guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else {
             return []
         }
-        return transactions.filter { $0.date >= startOfMonth }
+        return filteredTransactions.filter { $0.date >= startOfMonth }
     }
 
     private var monthlyIncome: Double {
@@ -44,7 +63,7 @@ struct HomeView: View {
     }
 
     private var recentTransactions: [Transaction] {
-        let sorted = transactions.sorted { $0.date > $1.date }
+        let sorted = filteredTransactions.sorted { $0.date > $1.date }
         return Array(sorted.prefix(10))
     }
 
@@ -63,6 +82,7 @@ struct HomeView: View {
                 label = "昨天"
             } else {
                 let f = DateFormatter()
+                f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
                 f.dateFormat = "M月d日 EEEE"
                 label = f.string(from: tx.date)
             }
@@ -91,6 +111,12 @@ struct HomeView: View {
                             .listRowBackground(Color.clear)
                     }
 
+                    if !budgets.isEmpty {
+                        budgetProgressSection
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
+                            .listRowBackground(Color.clear)
+                    }
+
                     quickAddButton
                         .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 4, trailing: 0))
                         .listRowBackground(Color.clear)
@@ -109,9 +135,18 @@ struct HomeView: View {
                         Section {
                             ForEach(group.items) { transaction in
                                 transactionRow(transaction)
+                                    .swipeActions(edge: .leading) {
+                                        Button {
+                                            editingTransaction = transaction
+                                        } label: {
+                                            Label("编辑", systemImage: "pencil")
+                                        }
+                                        .tint(.orange)
+                                    }
                                     .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {
-                                            deleteTransaction(transaction)
+                                            transactionToDelete = transaction
+                                            showDeleteAlert = true
                                         } label: {
                                             Label("删除", systemImage: "trash")
                                         }
@@ -132,6 +167,36 @@ struct HomeView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("有数")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    HStack(spacing: 12) {
+                        Button {
+                            showFilter = true
+                        } label: {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                                .font(.title3)
+                                .symbolRenderingMode(.hierarchical)
+                        }
+                        if currentMember != nil {
+                            Button {
+                                withAnimation {
+                                    showMemberOnly.toggle()
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: showMemberOnly ? "person.fill" : "person.3.fill")
+                                        .font(.system(size: 12))
+                                    Text(showMemberOnly ? "仅我" : "全部")
+                                        .font(.caption2.weight(.medium))
+                                }
+                                .foregroundColor(showMemberOnly ? .white : .accentColor)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(showMemberOnly ? Color.accentColor : Color(.systemGray6))
+                                .clipShape(Capsule())
+                            }
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showAddTransaction = true
@@ -145,6 +210,24 @@ struct HomeView: View {
             .sheet(isPresented: $showAddTransaction) {
                 AddTransactionView()
             }
+            .sheet(item: $editingTransaction) { transaction in
+                AddTransactionView(editingTransaction: transaction)
+            }
+            .sheet(isPresented: $showFilter) {
+                TransactionFilterView()
+            }
+            .alert("删除交易", isPresented: $showDeleteAlert) {
+                Button("取消", role: .cancel) {}
+                Button("删除", role: .destructive) {
+                    if let tx = transactionToDelete {
+                        deleteTransaction(tx)
+                    }
+                }
+            } message: {
+                if let tx = transactionToDelete {
+                    Text("确定要删除这笔 ¥\(String(format: "%.2f", tx.amount)) 的交易记录吗？")
+                }
+            }
         }
     }
 
@@ -153,6 +236,7 @@ struct HomeView: View {
     private var monthlySummaryCard: some View {
         let dateFormatter: DateFormatter = {
             let f = DateFormatter()
+            f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
             f.dateFormat = "M月"
             return f
         }()
@@ -235,6 +319,80 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Budget Progress
+
+    private var budgetProgressSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(budgets) { budget in
+                    if let category = budget.category {
+                        budgetCard(budget: budget, category: category)
+                    }
+                }
+            }
+            .padding(.horizontal, 0)
+        }
+    }
+
+    private func budgetCard(budget: Budget, category: Category) -> some View {
+        let now = Date()
+        let startOfMonth = Calendar.current.date(
+            from: Calendar.current.dateComponents([.year, .month], from: now)
+        ) ?? now
+        let spent = filteredTransactions
+            .filter { $0.type == .expense && $0.category?.id == category.id && $0.date >= startOfMonth }
+            .reduce(0) { $0 + $1.amount }
+        let limit = budget.monthlyLimit
+        let progress = limit > 0 ? min(spent / limit, 1.0) : 0
+        let isOver = spent > limit && limit > 0
+
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: category.icon)
+                    .font(.system(size: 10))
+                    .foregroundColor(category.color)
+                Text(category.name)
+                    .font(.system(size: 11, weight: .medium))
+                Spacer()
+                if isOver {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                }
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 4)
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(isOver ? Color.red : category.color)
+                        .frame(width: geo.size.width * progress, height: 4)
+                }
+            }
+            .frame(height: 4)
+
+            HStack {
+                Text("¥\(String(format: "%.0f", spent))/¥\(String(format: "%.0f", limit))")
+                    .font(.system(size: 10))
+                    .foregroundColor(isOver ? .red : .secondary)
+                Spacer()
+                if progress >= 1 && limit > 0 {
+                    Text("超支!")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.red)
+                }
+            }
+        }
+        .padding(10)
+        .frame(width: 140)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+
     // MARK: - Quick Add Button
 
     private var quickAddButton: some View {
@@ -289,7 +447,17 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.category?.name ?? "未分类")
                     .font(.system(size: 15, weight: .medium))
-                if !transaction.note.isEmpty && transaction.note.trimmingCharacters(in: .whitespaces).count > 0 {
+                if let member = transaction.createdByMember {
+                    HStack(spacing: 4) {
+                        Text(member.avatarInitial.isEmpty
+                             ? String(member.name.prefix(1))
+                             : member.avatarInitial)
+                            .font(.system(size: 10))
+                        Text(member.name)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                } else if !transaction.note.isEmpty && transaction.note.trimmingCharacters(in: .whitespaces).count > 0 {
                     Text(transaction.note)
                         .font(.caption)
                         .foregroundColor(.secondary)
