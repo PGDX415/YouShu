@@ -44,6 +44,12 @@ struct SettingsView: View {
 
                 Section {
                     NavigationLink {
+                        DataManageView()
+                    } label: {
+                        Label("数据管理", systemImage: "externaldrive")
+                    }
+
+                    NavigationLink {
                         PrivacyPolicyView()
                     } label: {
                         Label("隐私政策", systemImage: "hand.raised.fill")

@@ -167,7 +167,7 @@ struct HomeView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("有数")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
                         Button {
                             showFilter = true
@@ -195,15 +195,6 @@ struct HomeView: View {
                                 .clipShape(Capsule())
                             }
                         }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showAddTransaction = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .symbolRenderingMode(.hierarchical)
                     }
                 }
             }
@@ -423,7 +414,7 @@ struct HomeView: View {
             Text("还没有交易记录")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            Text("点击下方按钮记第一笔账")
+            Text("点击上方按钮记第一笔账")
                 .font(.caption)
                 .foregroundColor(.secondary.opacity(0.7))
         }

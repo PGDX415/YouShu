@@ -123,6 +123,13 @@ struct AddTransactionView: View {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(isEditing ? "保存" : "完成") {
+                        saveTransaction()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!canSave)
+                }
             }
             .onAppear {
                 if let tx = editingTransaction {

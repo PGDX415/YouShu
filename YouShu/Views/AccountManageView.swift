@@ -38,13 +38,14 @@ struct AccountManageView: View {
         }
         .navigationTitle("账户管理")
         .sheet(isPresented: $showEditSheet) {
-            AccountEditView(account: editingAccount) { name, icon, initialBalance in
+            AccountEditView(account: editingAccount) { name, icon, balance in
                 if let existing = editingAccount {
                     existing.name = name
                     existing.icon = icon
+                    existing.balance = balance
                     try? modelContext.save()
                 } else {
-                    let account = Account(name: name, icon: icon, balance: initialBalance)
+                    let account = Account(name: name, icon: icon, balance: balance)
                     modelContext.insert(account)
                     try? modelContext.save()
                 }
@@ -64,37 +65,41 @@ struct AccountManageView: View {
     }
 
     private func accountRow(_ account: Account) -> some View {
-        Button {
-            editingAccount = account
-            showEditSheet = true
-        } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.1))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: account.icon)
-                        .font(.system(size: 15))
-                        .foregroundColor(.accentColor)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(account.name)
-                        .foregroundColor(.primary)
-                    if account.isDefault {
-                        Text("默认账户")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Text("¥\(String(format: "%.2f", account.balance))")
-                    .font(.system(.body, design: .rounded).weight(.medium))
-                    .foregroundColor(account.balance >= 0 ? .green : .red)
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.1))
+                    .frame(width: 36, height: 36)
+                Image(systemName: account.icon)
+                    .font(.system(size: 15))
+                    .foregroundColor(.accentColor)
             }
-            .padding(.vertical, 4)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(account.name)
+                    .foregroundColor(.primary)
+                if account.isDefault {
+                    Text("默认账户")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Text("¥\(String(format: "%.2f", account.balance))")
+                .font(.system(.body, design: .rounded).weight(.medium))
+                .foregroundColor(account.balance >= 0 ? .green : .red)
+        }
+        .padding(.vertical, 4)
+        .swipeActions(edge: .leading) {
+            Button {
+                editingAccount = account
+                showEditSheet = true
+            } label: {
+                Label("编辑", systemImage: "pencil")
+            }
+            .tint(.orange)
         }
         .swipeActions(edge: .trailing) {
             if !account.isDefault {
@@ -172,14 +177,12 @@ struct AccountEditView: View {
                     .padding(.vertical, 4)
                 }
 
-                if account == nil {
-                    Section("初始余额") {
-                        HStack {
-                            Text("¥")
-                                .foregroundColor(.secondary)
-                            TextField("0.00", value: $initialBalance, format: .number)
-                                .keyboardType(.decimalPad)
-                        }
+                Section(account == nil ? "初始余额" : "余额") {
+                    HStack {
+                        Text("¥")
+                            .foregroundColor(.secondary)
+                        TextField("0.00", value: $initialBalance, format: .number)
+                            .keyboardType(.decimalPad)
                     }
                 }
             }
