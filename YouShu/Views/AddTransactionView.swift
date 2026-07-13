@@ -153,7 +153,8 @@ struct AddTransactionView: View {
             .sheet(isPresented: $showDatePicker) {
                 VStack {
                     UIKitDatePicker(selection: $date)
-                        .padding()
+                        .padding(.horizontal)
+                        .padding(.top)
 
                     HStack {
                         Spacer()
@@ -168,9 +169,10 @@ struct AddTransactionView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                         Spacer()
                     }
-                    .padding(.bottom, 20)
+                    .padding(.vertical, 12)
                 }
-                .presentationDetents([.medium])
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
         }
     }
