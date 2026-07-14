@@ -448,7 +448,9 @@ struct HomeView: View {
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
-                } else if !transaction.note.isEmpty && transaction.note.trimmingCharacters(in: .whitespaces).count > 0 {
+                }
+                let trimmedNote = transaction.note.trimmingCharacters(in: .whitespaces)
+                if !trimmedNote.isEmpty {
                     Text(transaction.note)
                         .font(.caption)
                         .foregroundColor(.secondary)
