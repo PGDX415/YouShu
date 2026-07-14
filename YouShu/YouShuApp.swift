@@ -37,6 +37,7 @@ struct YouShuApp: App {
             let container = try ModelContainer(for: schema, configurations: [config])
             Task { @MainActor in
                 DataSeeder.seedIfNeeded(modelContext: container.mainContext)
+                DataSeeder.observeCloudKitImports(modelContext: container.mainContext)
             }
             return container
         } catch {

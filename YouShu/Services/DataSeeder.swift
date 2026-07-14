@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftData
+import CoreData
 
 enum DataSeeder {
     private static let hasSeededKey = "com.gongdexin.paul.YouShu.hasSeededDefaults"
@@ -20,6 +21,25 @@ enum DataSeeder {
         seedDefaultAccountIfNeeded(modelContext: modelContext)
 
         UserDefaults.standard.set(true, forKey: hasSeededKey)
+    }
+
+    /// Register a callback to deduplicate after CloudKit import finishes.
+    /// CloudKit sync is async — duplicates arrive after the initial dedup call above.
+    static func observeCloudKitImports(modelContext: ModelContext) {
+        NotificationCenter.default.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                    as? NSPersistentCloudKitContainer.Event,
+                  event.type == .import,
+                  event.endDate != nil else {
+                return
+            }
+            deduplicateCategories(modelContext: modelContext)
+            deduplicateAccounts(modelContext: modelContext)
+        }
     }
 
     /// Remove duplicate categories with the same name + type, keeping only one copy.
