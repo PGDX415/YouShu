@@ -13,6 +13,9 @@ struct CategoryDetailView: View {
     let category: Category
     let period: ReportPeriod
 
+    @State private var showDeleteAlert = false
+    @State private var transactionToDelete: Transaction?
+
     private var filteredTransactions: [Transaction] {
         let start: Date
         switch period {
@@ -93,7 +96,8 @@ struct CategoryDetailView: View {
                         .padding(.vertical, 4)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
-                                deleteTransaction(transaction)
+                                transactionToDelete = transaction
+                                showDeleteAlert = true
                             } label: {
                                 Label("删除", systemImage: "trash")
                             }
@@ -105,11 +109,22 @@ struct CategoryDetailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("交易明细")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func deleteTransaction(_ transaction: Transaction) {
-        modelContext.delete(transaction)
-        try? modelContext.save()
+        .alert("删除交易", isPresented: $showDeleteAlert) {
+            Button("取消", role: .cancel) {}
+            Button("删除", role: .destructive) {
+                if let tx = transactionToDelete {
+                    if let account = tx.account {
+                        account.balance -= tx.signedAmount
+                    }
+                    modelContext.delete(tx)
+                    try? modelContext.save()
+                }
+            }
+        } message: {
+            if let tx = transactionToDelete {
+                Text("确定要删除这笔 ¥\(String(format: "%.2f", tx.amount)) 的交易记录吗？")
+            }
+        }
     }
 }
 

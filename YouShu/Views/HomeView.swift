@@ -298,6 +298,7 @@ struct HomeView: View {
                                 .foregroundColor(.secondary)
                                 Text("¥\(String(format: "%.0f", account.balance))")
                                     .font(.system(size: 13, weight: .medium, design: .rounded))
+                                    .foregroundColor(account.balance >= 0 ? .green : .red)
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
