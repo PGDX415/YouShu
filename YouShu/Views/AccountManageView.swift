@@ -10,8 +10,8 @@ struct AccountManageView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Account.createdAt) private var accounts: [Account]
 
-    @State private var showEditSheet = false
     @State private var editingAccount: Account?
+    @State private var showNewAccountSheet = false
     @State private var showDeleteAlert = false
     @State private var accountToDelete: Account?
 
@@ -29,26 +29,26 @@ struct AccountManageView: View {
 
             Section {
                 Button {
-                    editingAccount = nil
-                    showEditSheet = true
+                    showNewAccountSheet = true
                 } label: {
                     Label("添加账户", systemImage: "plus.circle")
                 }
             }
         }
         .navigationTitle("账户管理")
-        .sheet(isPresented: $showEditSheet) {
-            AccountEditView(account: editingAccount) { name, icon, balance in
-                if let existing = editingAccount {
-                    existing.name = name
-                    existing.icon = icon
-                    existing.balance = balance
-                    try? modelContext.save()
-                } else {
-                    let account = Account(name: name, icon: icon, balance: balance)
-                    modelContext.insert(account)
-                    try? modelContext.save()
-                }
+        .sheet(item: $editingAccount) { account in
+            AccountEditView(account: account) { name, icon, balance in
+                account.name = name
+                account.icon = icon
+                account.balance = balance
+                try? modelContext.save()
+            }
+        }
+        .sheet(isPresented: $showNewAccountSheet) {
+            AccountEditView(account: nil) { name, icon, balance in
+                let account = Account(name: name, icon: icon, balance: balance)
+                modelContext.insert(account)
+                try? modelContext.save()
             }
         }
         .alert("删除账户", isPresented: $showDeleteAlert) {
@@ -95,7 +95,6 @@ struct AccountManageView: View {
         .swipeActions(edge: .leading) {
             Button {
                 editingAccount = account
-                showEditSheet = true
             } label: {
                 Label("编辑", systemImage: "pencil")
             }
