@@ -47,7 +47,7 @@ struct CategoryDetailView: View {
                         }
                         Text(category.name)
                             .font(.title3.weight(.semibold))
-                        Text("合计 ¥\(String(format: "%.2f", totalAmount))")
+                        Text("合计 ¥\(totalAmount.formattedAmount)")
                             .font(.headline)
                             .foregroundColor(.red)
                     }
@@ -89,7 +89,7 @@ struct CategoryDetailView: View {
 
                             Spacer()
 
-                            Text("-¥\(String(format: "%.2f", transaction.amount))")
+                            Text("-¥\(transaction.amount.formattedAmount)")
                                 .font(.system(.body, design: .rounded).weight(.medium))
                                 .foregroundColor(.red)
                         }
@@ -122,7 +122,7 @@ struct CategoryDetailView: View {
             }
         } message: {
             if let tx = transactionToDelete {
-                Text("确定要删除这笔 ¥\(String(format: "%.2f", tx.amount)) 的交易记录吗？")
+                Text("确定要删除这笔 ¥\(tx.amount.formattedAmount) 的交易记录吗？")
             }
         }
     }

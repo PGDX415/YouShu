@@ -165,7 +165,7 @@ struct BudgetManageView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(category.name)
                                     .font(.subheadline.weight(.medium))
-                                Text("已花 ¥\(String(format: "%.0f", spent)) / 预算 ¥\(String(format: "%.0f", limit))")
+                                Text("已花 ¥\(spent.formattedAmount0) / 预算 ¥\(limit.formattedAmount0)")
                                     .font(.caption)
                                     .foregroundColor(isOverBudget ? .red : .secondary)
                             }
@@ -250,7 +250,7 @@ struct BudgetEditView: View {
                     Text("每月预算")
                 } footer: {
                     if let limit = Double(limitText), limit > 0 {
-                        Text("「\(budget.category?.name ?? "")」分类每月消费上限 ¥\(String(format: "%.0f", limit))")
+                        Text("「\(budget.category?.name ?? "")」分类每月消费上限 ¥\(limit.formattedAmount0)")
                     }
                 }
             }

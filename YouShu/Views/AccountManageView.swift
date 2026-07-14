@@ -87,7 +87,7 @@ struct AccountManageView: View {
 
             Spacer()
 
-            Text("¥\(String(format: "%.2f", account.balance))")
+            Text("¥\(account.balance.formattedAmount)")
                 .font(.system(.body, design: .rounded).weight(.medium))
                 .foregroundColor(account.balance >= 0 ? .green : .red)
         }

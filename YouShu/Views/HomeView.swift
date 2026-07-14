@@ -216,7 +216,7 @@ struct HomeView: View {
                 }
             } message: {
                 if let tx = transactionToDelete {
-                    Text("确定要删除这笔 ¥\(String(format: "%.2f", tx.amount)) 的交易记录吗？")
+                    Text("确定要删除这笔 ¥\(tx.amount.formattedAmount) 的交易记录吗？")
                 }
             }
         }
@@ -255,7 +255,7 @@ struct HomeView: View {
             Text(title)
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("¥\(String(format: "%.0f", amount))")
+            Text("¥\(amount.formattedAmount0)")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundColor(color)
                 .lineLimit(1)
@@ -279,7 +279,7 @@ struct HomeView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-                Text("¥\(String(format: "%.2f", totalBalance))")
+                Text("¥\(totalBalance.formattedAmount)")
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundColor(totalBalance >= 0 ? .green : .red)
             }
@@ -296,7 +296,7 @@ struct HomeView: View {
                                         .font(.system(size: 11))
                                 }
                                 .foregroundColor(.secondary)
-                                Text("¥\(String(format: "%.0f", account.balance))")
+                                Text("¥\(account.balance.formattedAmount0)")
                                     .font(.system(size: 13, weight: .medium, design: .rounded))
                                     .foregroundColor(account.balance >= 0 ? .green : .red)
                             }
@@ -367,7 +367,7 @@ struct HomeView: View {
             .frame(height: 4)
 
             HStack {
-                Text("¥\(String(format: "%.0f", spent))/¥\(String(format: "%.0f", limit))")
+                Text("¥\(spent.formattedAmount0)/¥\(limit.formattedAmount0)")
                     .font(.system(size: 10))
                     .foregroundColor(isOver ? .red : .secondary)
                 Spacer()
@@ -463,8 +463,8 @@ struct HomeView: View {
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(isExpense
-                     ? "-¥\(String(format: "%.2f", transaction.amount))"
-                     : "+¥\(String(format: "%.2f", transaction.amount))")
+                     ? "-¥\(transaction.amount.formattedAmount)"
+                     : "+¥\(transaction.amount.formattedAmount)")
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundColor(isExpense ? .red : .green)
                 Text(transaction.date, format: .dateTime.hour().minute())

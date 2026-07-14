@@ -115,7 +115,7 @@ struct TransactionFilterView: View {
                 }
             } message: {
                 if let tx = transactionToDelete {
-                    Text("确定要删除这笔 ¥\(String(format: "%.2f", tx.amount)) 的交易记录吗？")
+                    Text("确定要删除这笔 ¥\(tx.amount.formattedAmount) 的交易记录吗？")
                 }
             }
         }
@@ -351,13 +351,13 @@ struct TransactionFilterView: View {
         return HStack(spacing: 16) {
             VStack(spacing: 2) {
                 Text("收入").font(.caption).foregroundColor(.secondary)
-                Text("¥\(String(format: "%.0f", result.income))")
+                Text("¥\(result.income.formattedAmount0)")
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundColor(.green)
             }
             VStack(spacing: 2) {
                 Text("支出").font(.caption).foregroundColor(.secondary)
-                Text("¥\(String(format: "%.0f", result.expense))")
+                Text("¥\(result.expense.formattedAmount0)")
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundColor(.red)
             }
@@ -438,8 +438,8 @@ struct TransactionFilterView: View {
             Spacer()
 
             Text(tx.type == .expense
-                 ? "-¥\(String(format: "%.2f", tx.amount))"
-                 : "+¥\(String(format: "%.2f", tx.amount))")
+                 ? "-¥\(tx.amount.formattedAmount)"
+                 : "+¥\(tx.amount.formattedAmount)")
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .foregroundColor(tx.type == .expense ? .red : .green)
         }

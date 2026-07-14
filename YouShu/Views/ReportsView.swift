@@ -283,7 +283,7 @@ struct ReportsView: View {
                 Text("支出分类占比")
                     .font(.headline)
                 Spacer()
-                Text("合计 ¥\(String(format: "%.0f", totalExpense))")
+                Text("合计 ¥\(totalExpense.formattedAmount0)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -348,7 +348,7 @@ struct ReportsView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("¥\(String(format: "%.0f", item.amount))")
+                    Text("¥\(item.amount.formattedAmount0)")
                         .font(.subheadline.weight(.medium))
                     Text(String(format: "%.1f%%", item.percentage))
                         .font(.caption)

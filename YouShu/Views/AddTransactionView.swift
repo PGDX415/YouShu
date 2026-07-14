@@ -192,7 +192,7 @@ struct AddTransactionView: View {
                             amountText = String(format: "%.0f", value)
                             isAmountFocused = false
                         } label: {
-                            Text("¥\(String(format: "%.0f", value))")
+                            Text("¥\(value.formattedAmount0)")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.accentColor)
                                 .padding(.horizontal, 14)
@@ -554,7 +554,7 @@ struct AddTransactionView: View {
                     .font(.title3.weight(.semibold))
                     .foregroundColor(.white)
 
-                Text("¥\(String(format: "%.2f", amount))")
+                Text("¥\(amount.formattedAmount)")
                     .font(.title2.weight(.bold))
                     .foregroundColor(.white)
             }
