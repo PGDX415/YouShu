@@ -84,6 +84,13 @@ struct AccountManageView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                let trimmedNote = account.note.trimmingCharacters(in: .whitespaces)
+                if !trimmedNote.isEmpty {
+                    Text(trimmedNote)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer()
