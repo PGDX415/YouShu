@@ -12,9 +12,9 @@ enum TransactionType: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .expense: return "支出"
-        case .income: return "收入"
-        case .transfer: return "转账"
+        case .expense: return String(localized: "支出")
+        case .income: return String(localized: "收入")
+        case .transfer: return String(localized: "转账")
         }
     }
 }

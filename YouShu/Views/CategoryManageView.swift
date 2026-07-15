@@ -121,7 +121,7 @@ struct CategoryManageView: View {
             try? modelContext.save()
             editingCategory = category
         } label: {
-            Label("添加\(type.displayName)分类", systemImage: "plus.circle")
+            Label(String(format: String(localized: "添加 %@ 分类"), type.displayName), systemImage: "plus.circle")
         }
     }
 }

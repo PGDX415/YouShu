@@ -151,7 +151,7 @@ struct ReportsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(periodLabel)
                     .font(.title3.weight(.semibold))
-                Text("共 \(currentPeriodTransactions.count) 笔交易")
+                Text(String(format: String(localized: "共 %lld 笔交易"), currentPeriodTransactions.count))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }

@@ -144,8 +144,8 @@ struct DataManageView: View {
         let center = UNUserNotificationCenter.current()
 
         let content = UNMutableNotificationContent()
-        content.title = "有数 — 备份提醒"
-        content.body = "已经一周了，记得导出备份数据，防止记账数据丢失。"
+        content.title = String(localized: "有数 — 备份提醒")
+        content.body = String(localized: "已经一周了，记得导出备份数据，防止记账数据丢失。")
         content.sound = .default
 
         var components = DateComponents()
@@ -186,21 +186,21 @@ struct DataManageView: View {
         defer { url.stopAccessingSecurityScopedResource() }
 
         guard let result = manager.importData(from: url, into: modelContext) else {
-            importAlertMessage = "文件格式不正确或已损坏，请检查文件。"
+            importAlertMessage = String(localized: "文件格式不正确或已损坏，请检查文件。")
             showImportAlert = true
             return
         }
 
         var parts: [String] = []
-        if result.categoriesAdded > 0 { parts.append("\(result.categoriesAdded) 个分类") }
-        if result.accountsAdded > 0 { parts.append("\(result.accountsAdded) 个账户") }
-        if result.transactionsAdded > 0 { parts.append("\(result.transactionsAdded) 笔交易") }
-        if result.budgetsAdded > 0 { parts.append("\(result.budgetsAdded) 个预算") }
+        if result.categoriesAdded > 0 { parts.append(String(format: String(localized: "%lld 个分类"), result.categoriesAdded)) }
+        if result.accountsAdded > 0 { parts.append(String(format: String(localized: "%lld 个账户"), result.accountsAdded)) }
+        if result.transactionsAdded > 0 { parts.append(String(format: String(localized: "%lld 笔交易"), result.transactionsAdded)) }
+        if result.budgetsAdded > 0 { parts.append(String(format: String(localized: "%lld 个预算"), result.budgetsAdded)) }
 
         if parts.isEmpty {
-            importAlertMessage = "没有新数据需要导入（全部已存在）。"
+            importAlertMessage = String(localized: "没有新数据需要导入（全部已存在）。")
         } else {
-            importAlertMessage = "成功导入：\n" + parts.joined(separator: "\n")
+            importAlertMessage = String(localized: "成功导入：") + "\n" + parts.joined(separator: "\n")
         }
         showImportAlert = true
     }

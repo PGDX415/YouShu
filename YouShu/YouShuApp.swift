@@ -98,7 +98,7 @@ struct YouShuApp: App {
                 fetchedMetadata = metadata
             case .failure(let error):
                 DispatchQueue.main.async {
-                    shareAcceptError = "无法获取共享信息：\(error.localizedDescription)"
+                    shareAcceptError = String(localized: "无法获取共享信息：") + error.localizedDescription
                 }
             }
         }
@@ -113,7 +113,7 @@ struct YouShuApp: App {
                     print("✅ CKShare accepted")
                 case .failure(let error):
                     DispatchQueue.main.async {
-                        shareAcceptError = "加入家庭账本失败：\(error.localizedDescription)"
+                        shareAcceptError = String(localized: "加入家庭账本失败：") + error.localizedDescription
                     }
                 }
             }

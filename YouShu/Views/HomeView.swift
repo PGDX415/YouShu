@@ -156,7 +156,7 @@ struct HomeView: View {
                             HStack {
                                 Text(group.date)
                                 Spacer()
-                                Text("\(group.items.count) 笔")
+                                Text(String(format: String(localized: "%lld 笔"), group.items.count))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -233,7 +233,7 @@ struct HomeView: View {
         }()
 
         return VStack(spacing: 0) {
-            Text("\(dateFormatter.string(from: Date())) 财务概览")
+            Text("\(dateFormatter.string(from: Date()))\(String(localized: " 财务概览"))")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .padding(.top, 4)
