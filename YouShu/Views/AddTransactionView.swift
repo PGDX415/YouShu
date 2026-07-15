@@ -16,6 +16,8 @@ struct AddTransactionView: View {
     @Query private var members: [FamilyMember]
 
     @AppStorage("recentAmounts") private var recentAmountsJSON: String = "[]"
+    @AppStorage("defaultExpenseCategoryID") private var defaultExpenseCategoryID: String = ""
+    @AppStorage("defaultIncomeCategoryID") private var defaultIncomeCategoryID: String = ""
 
     let editingTransaction: Transaction?
 
@@ -66,6 +68,13 @@ struct AddTransactionView: View {
 
     private var filteredCategories: [Category] {
         allCategories.filter { $0.type == selectedType }
+    }
+
+    /// Last-used category for the current type (persisted in AppStorage).
+    private var defaultCategory: Category? {
+        let idString = selectedType == .expense ? defaultExpenseCategoryID : defaultIncomeCategoryID
+        guard let uuid = UUID(uuidString: idString) else { return nil }
+        return filteredCategories.first { $0.id == uuid }
     }
 
     // Recent amounts (last 5 unique, from UserDefaults)
@@ -156,6 +165,7 @@ struct AddTransactionView: View {
                 } else {
                     isAmountFocused = true
                     selectedAccount = accounts.first(where: { $0.isDefault }) ?? accounts.first
+                    selectedCategory = defaultCategory ?? filteredCategories.first
                 }
             }
             .overlay {
@@ -267,8 +277,8 @@ struct AddTransactionView: View {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedType = type
-                        if type != .transfer, let first = filteredCategories.first {
-                            selectedCategory = first
+                        if type != .transfer {
+                            selectedCategory = defaultCategory ?? filteredCategories.first
                         } else {
                             selectedCategory = nil
                         }
@@ -638,6 +648,16 @@ struct AddTransactionView: View {
         }
 
         try? modelContext.save()
+
+        // Persist default category for this type
+        if selectedType != .transfer, let cat = selectedCategory {
+            let idString = cat.id.uuidString
+            if selectedType == .expense {
+                defaultExpenseCategoryID = idString
+            } else {
+                defaultIncomeCategoryID = idString
+            }
+        }
 
         // Persist recent amount
         saveRecentAmount(amount)
