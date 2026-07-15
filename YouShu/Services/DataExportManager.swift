@@ -33,6 +33,7 @@ struct ExportCategory: Codable {
 struct ExportAccount: Codable {
     let name: String
     let icon: String
+    let note: String
     let balance: Double
     let isDefault: Bool
 }
@@ -82,7 +83,8 @@ final class DataExportManager: ObservableObject {
                 typeRaw: $0.typeRaw, sortOrder: $0.sortOrder, isPreset: $0.isPreset
             )},
             accounts: allAccounts.map { ExportAccount(
-                name: $0.name, icon: $0.icon, balance: $0.balance, isDefault: $0.isDefault
+                name: $0.name, icon: $0.icon, note: $0.note,
+                balance: $0.balance, isDefault: $0.isDefault
             )},
             transactions: allTransactions.map { ExportTransaction(
                 id: $0.id.uuidString, amount: $0.amount, typeRaw: $0.typeRaw,
@@ -165,7 +167,8 @@ final class DataExportManager: ObservableObject {
         let accountNames = Set(allAccounts.map { $0.name })
         for ea in export.accounts {
             if accountNames.contains(ea.name) { continue }
-            let acc = Account(name: ea.name, icon: ea.icon, balance: ea.balance)
+            let acc = Account(name: ea.name, icon: ea.icon,
+                              note: ea.note, balance: ea.balance)
             acc.isDefault = ea.isDefault && allAccounts.isEmpty
             context.insert(acc)
             acctsAdded += 1

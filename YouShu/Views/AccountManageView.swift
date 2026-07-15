@@ -37,16 +37,17 @@ struct AccountManageView: View {
         }
         .navigationTitle("账户管理")
         .sheet(item: $editingAccount) { account in
-            AccountEditView(account: account) { name, icon, balance in
+            AccountEditView(account: account) { name, icon, balance, note in
                 account.name = name
                 account.icon = icon
                 account.balance = balance
+                account.note = note
                 try? modelContext.save()
             }
         }
         .sheet(isPresented: $showNewAccountSheet) {
-            AccountEditView(account: nil) { name, icon, balance in
-                let account = Account(name: name, icon: icon, balance: balance)
+            AccountEditView(account: nil) { name, icon, balance, note in
+                let account = Account(name: name, icon: icon, note: note, balance: balance)
                 modelContext.insert(account)
                 try? modelContext.save()
             }
@@ -119,11 +120,12 @@ struct AccountEditView: View {
     @Environment(\.dismiss) private var dismiss
 
     let account: Account?
-    let onSave: (String, String, Double) -> Void
+    let onSave: (String, String, Double, String) -> Void
 
     @State private var name: String
     @State private var icon: String
     @State private var initialBalance: Double
+    @State private var note: String
 
     private let iconOptions: [String] = [
         "wallet.pass.fill", "creditcard.fill", "banknote.fill",
@@ -136,12 +138,13 @@ struct AccountEditView: View {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    init(account: Account?, onSave: @escaping (String, String, Double) -> Void) {
+    init(account: Account?, onSave: @escaping (String, String, Double, String) -> Void) {
         self.account = account
         self.onSave = onSave
         _name = State(initialValue: account?.name ?? "")
         _icon = State(initialValue: account?.icon ?? "wallet.pass.fill")
         _initialBalance = State(initialValue: account?.balance ?? 0)
+        _note = State(initialValue: account?.note ?? "")
     }
 
     var body: some View {
@@ -184,6 +187,10 @@ struct AccountEditView: View {
                             .keyboardType(.decimalPad)
                     }
                 }
+
+                Section("备注") {
+                    TextField("用途、银行等信息", text: $note)
+                }
             }
             .navigationTitle(account == nil ? "新建账户" : "编辑账户")
             .navigationBarTitleDisplayMode(.inline)
@@ -193,7 +200,7 @@ struct AccountEditView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存") {
-                        onSave(name.trimmingCharacters(in: .whitespaces), icon, initialBalance)
+                        onSave(name.trimmingCharacters(in: .whitespaces), icon, initialBalance, note.trimmingCharacters(in: .whitespaces))
                         dismiss()
                     }
                     .fontWeight(.semibold)

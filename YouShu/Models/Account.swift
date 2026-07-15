@@ -11,6 +11,7 @@ final class Account {
     var id: UUID = UUID()
     var name: String = ""
     var icon: String = "wallet.pass.fill"
+    var note: String = ""
     var balance: Double = 0
     var createdAt: Date = Date()
     var isDefault: Bool = false
@@ -25,12 +26,14 @@ final class Account {
         id: UUID = UUID(),
         name: String,
         icon: String = "wallet.pass.fill",
+        note: String = "",
         balance: Double = 0,
         isDefault: Bool = false
     ) {
         self.id = id
         self.name = name
         self.icon = icon
+        self.note = note
         self.balance = balance
         self.isDefault = isDefault
     }
