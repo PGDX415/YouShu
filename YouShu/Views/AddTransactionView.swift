@@ -403,19 +403,33 @@ struct AddTransactionView: View {
                     .font(.title3)
                 Text("从")
                     .font(.subheadline)
-                Picker("转出账户", selection: $selectedAccount) {
-                    Text("选择账户").tag(nil as Account?)
-                    ForEach(accounts) { account in
-                        Text(account.name).tag(account as Account?)
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(.primary)
+                    .foregroundColor(.secondary)
                 Spacer()
-                if let acc = selectedAccount {
-                    Text(acc.name)
-                        .foregroundColor(.primary)
-                        .font(.subheadline.weight(.medium))
+                Menu {
+                    Button { selectedAccount = nil } label: {
+                        HStack {
+                            Text("选择账户")
+                            if selectedAccount == nil { Image(systemName: "checkmark") }
+                        }
+                    }
+                    ForEach(accounts) { account in
+                        Button { selectedAccount = account } label: {
+                            HStack {
+                                Text(account.name)
+                                if selectedAccount?.id == account.id { Image(systemName: "checkmark") }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(selectedAccount?.name ?? "选择账户")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(selectedAccount == nil ? .secondary : .primary)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .padding(10)
@@ -433,19 +447,33 @@ struct AddTransactionView: View {
                     .font(.title3)
                 Text("至")
                     .font(.subheadline)
-                Picker("转入账户", selection: $selectedDestinationAccount) {
-                    Text("选择账户").tag(nil as Account?)
-                    ForEach(accounts.filter { $0.id != selectedAccount?.id }) { account in
-                        Text(account.name).tag(account as Account?)
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(.primary)
+                    .foregroundColor(.secondary)
                 Spacer()
-                if let dest = selectedDestinationAccount {
-                    Text(dest.name)
-                        .foregroundColor(.primary)
-                        .font(.subheadline.weight(.medium))
+                Menu {
+                    Button { selectedDestinationAccount = nil } label: {
+                        HStack {
+                            Text("选择账户")
+                            if selectedDestinationAccount == nil { Image(systemName: "checkmark") }
+                        }
+                    }
+                    ForEach(accounts.filter { $0.id != selectedAccount?.id }) { account in
+                        Button { selectedDestinationAccount = account } label: {
+                            HStack {
+                                Text(account.name)
+                                if selectedDestinationAccount?.id == account.id { Image(systemName: "checkmark") }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(selectedDestinationAccount?.name ?? "选择账户")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(selectedDestinationAccount == nil ? .secondary : .primary)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .padding(10)
