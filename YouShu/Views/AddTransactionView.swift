@@ -62,7 +62,7 @@ struct AddTransactionView: View {
     private var formattedDate: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
-        f.dateFormat = "yyyy年M月d日 HH:mm"
+        f.setLocalizedDateFormatFromTemplate("yyyyMMMMdjjmm")
         return f.string(from: date)
     }
 

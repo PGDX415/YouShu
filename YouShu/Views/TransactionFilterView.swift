@@ -307,7 +307,7 @@ struct TransactionFilterView: View {
     private var dateLabel: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
-        f.dateFormat = "M/d"
+        f.setLocalizedDateFormatFromTemplate("Md")
         if let start = criteria.startDate, let end = criteria.endDate {
             return "\(f.string(from: start))-\(f.string(from: end))"
         } else if let start = criteria.startDate {

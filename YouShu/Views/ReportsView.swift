@@ -120,7 +120,7 @@ struct ReportsView: View {
         case .year:
             let f = DateFormatter()
             f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
-            f.dateFormat = "yyyy年"
+            f.setLocalizedDateFormatFromTemplate("yyyy")
             return f.string(from: Date())
         }
     }

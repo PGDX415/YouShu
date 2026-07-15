@@ -25,14 +25,14 @@ extension Date {
     var monthYearString: String {
         let f = DateFormatter()
         f.locale = Self.formatterLocale
-        f.dateFormat = "yyyy年M月"
+        f.setLocalizedDateFormatFromTemplate("yyyyMMMM")
         return f.string(from: self)
     }
 
     var shortMonthString: String {
         let f = DateFormatter()
         f.locale = Self.formatterLocale
-        f.dateFormat = "M月"
+        f.setLocalizedDateFormatFromTemplate("MMM")
         return f.string(from: self)
     }
 

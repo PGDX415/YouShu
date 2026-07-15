@@ -83,7 +83,7 @@ struct HomeView: View {
             } else {
                 let f = DateFormatter()
                 f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
-                f.dateFormat = "M月d日 EEEE"
+                f.setLocalizedDateFormatFromTemplate("MMMMdEEEE")
                 label = f.string(from: tx.date)
             }
 
@@ -228,7 +228,7 @@ struct HomeView: View {
         let dateFormatter: DateFormatter = {
             let f = DateFormatter()
             f.locale = Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
-            f.dateFormat = "M月"
+            f.setLocalizedDateFormatFromTemplate("MMMM")
             return f
         }()
 
