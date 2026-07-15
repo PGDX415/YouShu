@@ -65,6 +65,12 @@ struct AccountManageView: View {
         }
     }
 
+    private func setDefault(_ account: Account) {
+        for acc in accounts where acc.isDefault { acc.isDefault = false }
+        account.isDefault = true
+        try? modelContext.save()
+    }
+
     private func accountRow(_ account: Account) -> some View {
         HStack(spacing: 12) {
             ZStack {
@@ -107,6 +113,14 @@ struct AccountManageView: View {
                 Label("编辑", systemImage: "pencil")
             }
             .tint(.orange)
+            if !account.isDefault {
+                Button {
+                    setDefault(account)
+                } label: {
+                    Label("设为默认", systemImage: "star.fill")
+                }
+                .tint(.blue)
+            }
         }
         .swipeActions(edge: .trailing) {
             if !account.isDefault {

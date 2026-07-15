@@ -66,8 +66,7 @@ enum DataSeeder {
         try? modelContext.save()
     }
 
-    /// Keep only the oldest seeded account as default; mark all others non-default
-    /// and remove duplicate "现金" accounts.
+    /// Remove duplicate "现金" accounts; only set default if none exists.
     private static func deduplicateAccounts(modelContext: ModelContext) {
         let descriptor = FetchDescriptor<Account>(sortBy: [SortDescriptor(\Account.createdAt)])
         guard let allAccounts = try? modelContext.fetch(descriptor) else { return }
@@ -75,18 +74,15 @@ enum DataSeeder {
         // Deduplicate seeded "现金" accounts — keep the oldest one
         let cashAccounts = allAccounts.filter { $0.name == "现金" }
         if cashAccounts.count > 1 {
-            // Keep the first (oldest), delete the rest
             for dup in cashAccounts.dropFirst() {
                 modelContext.delete(dup)
             }
         }
 
-        // Mark only the oldest "现金" account as default; all others non-default
-        if let firstCash = cashAccounts.first {
-            firstCash.isDefault = true
-        }
-        for acc in allAccounts where acc !== cashAccounts.first {
-            acc.isDefault = false
+        // If no account is default, set the oldest account as default
+        if !allAccounts.contains(where: { $0.isDefault }),
+           let first = allAccounts.first {
+            first.isDefault = true
         }
 
         try? modelContext.save()
