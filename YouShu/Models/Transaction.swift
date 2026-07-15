@@ -17,6 +17,7 @@ final class Transaction {
 
     var category: Category?
     var account: Account?
+    var destinationAccount: Account?
     var ledger: FamilyLedger?
     var createdByMember: FamilyMember?
 
@@ -26,7 +27,11 @@ final class Transaction {
     }
 
     var signedAmount: Double {
-        type == .expense ? -abs(amount) : abs(amount)
+        switch type {
+        case .expense: return -abs(amount)
+        case .income: return abs(amount)
+        case .transfer: return 0
+        }
     }
 
     init(
@@ -37,6 +42,7 @@ final class Transaction {
         note: String = "",
         category: Category? = nil,
         account: Account? = nil,
+        destinationAccount: Account? = nil,
         createdByMember: FamilyMember? = nil
     ) {
         self.id = id
@@ -46,6 +52,7 @@ final class Transaction {
         self.note = note
         self.category = category
         self.account = account
+        self.destinationAccount = destinationAccount
         self.createdByMember = createdByMember
     }
 }

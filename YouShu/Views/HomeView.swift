@@ -424,21 +424,38 @@ struct HomeView: View {
     }
 
     private func transactionRow(_ transaction: Transaction) -> some View {
+        let isTransfer = transaction.type == .transfer
         let isExpense = transaction.type == .expense
 
         return HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill((transaction.category?.color ?? Color(.systemGray4)).opacity(0.15))
+                    .fill(isTransfer
+                          ? Color.blue.opacity(0.15)
+                          : (transaction.category?.color ?? Color(.systemGray4)).opacity(0.15))
                     .frame(width: 40, height: 40)
-                Image(systemName: transaction.category?.icon ?? "questionmark.circle")
+                Image(systemName: isTransfer
+                       ? "arrow.left.arrow.right"
+                       : (transaction.category?.icon ?? "questionmark.circle"))
                     .font(.system(size: 16))
-                    .foregroundColor(transaction.category?.color ?? Color(.systemGray))
+                    .foregroundColor(isTransfer ? .blue : (transaction.category?.color ?? Color(.systemGray)))
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(transaction.category?.name ?? "未分类")
-                    .font(.system(size: 15, weight: .medium))
+                if isTransfer {
+                    HStack(spacing: 4) {
+                        Text(transaction.account?.name ?? "?")
+                            .font(.system(size: 15, weight: .medium))
+                        Image(systemName: "arrow.right")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text(transaction.destinationAccount?.name ?? "?")
+                            .font(.system(size: 15, weight: .medium))
+                    }
+                } else {
+                    Text(transaction.category?.name ?? "未分类")
+                        .font(.system(size: 15, weight: .medium))
+                }
                 if let member = transaction.createdByMember {
                     HStack(spacing: 4) {
                         Text(member.avatarInitial.isEmpty
@@ -462,11 +479,13 @@ struct HomeView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text(isExpense
-                     ? "-¥\(transaction.amount.formattedAmount)"
-                     : "+¥\(transaction.amount.formattedAmount)")
+                Text(isTransfer
+                     ? "¥\(transaction.amount.formattedAmount)"
+                     : (isExpense
+                        ? "-¥\(transaction.amount.formattedAmount)"
+                        : "+¥\(transaction.amount.formattedAmount)"))
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(isExpense ? .red : .green)
+                    .foregroundColor(isTransfer ? .blue : (isExpense ? .red : .green))
                 Text(transaction.date, format: .dateTime.hour().minute())
                     .font(.caption2)
                     .foregroundColor(.secondary)
@@ -478,7 +497,11 @@ struct HomeView: View {
     // MARK: - Delete
 
     private func deleteTransaction(_ transaction: Transaction) {
-        if let account = transaction.account {
+        if transaction.type == .transfer {
+            // Reverse transfer: add back to source, subtract from destination
+            if let src = transaction.account { src.balance += abs(transaction.amount) }
+            if let dest = transaction.destinationAccount { dest.balance -= abs(transaction.amount) }
+        } else if let account = transaction.account {
             account.balance -= transaction.signedAmount
         }
         modelContext.delete(transaction)

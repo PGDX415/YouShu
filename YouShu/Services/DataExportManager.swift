@@ -46,6 +46,7 @@ struct ExportTransaction: Codable {
     let categoryName: String?
     let categoryType: String?
     let accountName: String?
+    let destinationAccountName: String?
 }
 
 struct ExportBudget: Codable {
@@ -87,7 +88,8 @@ final class DataExportManager: ObservableObject {
                 id: $0.id.uuidString, amount: $0.amount, typeRaw: $0.typeRaw,
                 date: $0.date, note: $0.note,
                 categoryName: $0.category?.name, categoryType: $0.category?.typeRaw,
-                accountName: $0.account?.name
+                accountName: $0.account?.name,
+                destinationAccountName: $0.destinationAccount?.name
             )},
             budgets: allBudgets.compactMap { budget in
                 guard let cat = budget.category else { return nil }
@@ -186,18 +188,25 @@ final class DataExportManager: ObservableObject {
             let acc = et.accountName.flatMap { name in
                 updatedAccounts.first { $0.name == name }
             }
+            let destAcc = et.destinationAccountName.flatMap { name in
+                updatedAccounts.first { $0.name == name }
+            }
 
             let txn = Transaction(
                 id: uuid, amount: et.amount,
                 type: TransactionType(rawValue: et.typeRaw) ?? .expense,
                 date: et.date, note: et.note,
-                category: cat, account: acc
+                category: cat, account: acc,
+                destinationAccount: destAcc
             )
             context.insert(txn)
 
             // Update account balance
             if let account = acc {
-                account.balance += txn.signedAmount
+                account.balance += (txn.type == .transfer ? -abs(txn.amount) : txn.signedAmount)
+            }
+            if let dest = destAcc, txn.type == .transfer {
+                dest.balance += abs(txn.amount)
             }
 
             txnsAdded += 1

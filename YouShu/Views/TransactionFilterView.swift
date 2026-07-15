@@ -106,7 +106,10 @@ struct TransactionFilterView: View {
                 Button("取消", role: .cancel) {}
                 Button("删除", role: .destructive) {
                     if let tx = transactionToDelete {
-                        if let account = tx.account {
+                        if tx.type == .transfer {
+                            if let src = tx.account { src.balance += abs(tx.amount) }
+                            if let dest = tx.destinationAccount { dest.balance -= abs(tx.amount) }
+                        } else if let account = tx.account {
                             account.balance -= tx.signedAmount
                         }
                         modelContext.delete(tx)
@@ -144,6 +147,12 @@ struct TransactionFilterView: View {
                         HStack {
                             Text("收入")
                             if criteria.selectedType == .income { Image(systemName: "checkmark") }
+                        }
+                    }
+                    Button { criteria.selectedType = .transfer } label: {
+                        HStack {
+                            Text("转账")
+                            if criteria.selectedType == .transfer { Image(systemName: "checkmark") }
                         }
                     }
                 } label: {
@@ -404,19 +413,32 @@ struct TransactionFilterView: View {
     }
 
     private func transactionRow(_ tx: Transaction) -> some View {
-        HStack(spacing: 12) {
+        let isTransfer = tx.type == .transfer
+        return HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill((tx.category?.color ?? Color(.systemGray4)).opacity(0.15))
+                    .fill(isTransfer
+                          ? Color.blue.opacity(0.15)
+                          : (tx.category?.color ?? Color(.systemGray4)).opacity(0.15))
                     .frame(width: 36, height: 36)
-                Image(systemName: tx.category?.icon ?? "questionmark.circle")
+                Image(systemName: isTransfer
+                       ? "arrow.left.arrow.right"
+                       : (tx.category?.icon ?? "questionmark.circle"))
                     .font(.system(size: 14))
-                    .foregroundColor(tx.category?.color ?? Color(.systemGray))
+                    .foregroundColor(isTransfer ? .blue : (tx.category?.color ?? Color(.systemGray)))
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(tx.category?.name ?? "未分类")
-                    .font(.system(size: 14, weight: .medium))
+                if isTransfer {
+                    HStack(spacing: 4) {
+                        Text(tx.account?.name ?? "?").font(.system(size: 14, weight: .medium))
+                        Image(systemName: "arrow.right").font(.caption2).foregroundColor(.secondary)
+                        Text(tx.destinationAccount?.name ?? "?").font(.system(size: 14, weight: .medium))
+                    }
+                } else {
+                    Text(tx.category?.name ?? "未分类")
+                        .font(.system(size: 14, weight: .medium))
+                }
                 HStack(spacing: 4) {
                     if let member = tx.createdByMember {
                         Text(member.avatarInitial.isEmpty
@@ -437,13 +459,14 @@ struct TransactionFilterView: View {
 
             Spacer()
 
-            Text(tx.type == .expense
-                 ? "-¥\(tx.amount.formattedAmount)"
-                 : "+¥\(tx.amount.formattedAmount)")
+            Text(isTransfer
+                 ? "¥\(tx.amount.formattedAmount)"
+                 : (tx.type == .expense
+                    ? "-¥\(tx.amount.formattedAmount)"
+                    : "+¥\(tx.amount.formattedAmount)"))
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundColor(tx.type == .expense ? .red : .green)
-        }
-        .padding(.vertical, 4)
+                .foregroundColor(isTransfer ? .blue : (tx.type == .expense ? .red : .green))
+        }.padding(.vertical, 4)
     }
 }
 

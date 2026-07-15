@@ -23,6 +23,7 @@ struct AddTransactionView: View {
     @State private var selectedType: TransactionType = .expense
     @State private var selectedCategory: Category?
     @State private var selectedAccount: Account?
+    @State private var selectedDestinationAccount: Account?
     @State private var note: String = ""
     @State private var date: Date = Date()
     @State private var showOptionalFields: Bool = false
@@ -47,7 +48,13 @@ struct AddTransactionView: View {
     }
 
     private var canSave: Bool {
-        amount > 0 && selectedCategory != nil
+        guard amount > 0 else { return false }
+        if selectedType == .transfer {
+            return selectedAccount != nil
+                && selectedDestinationAccount != nil
+                && selectedAccount?.id != selectedDestinationAccount?.id
+        }
+        return selectedCategory != nil
     }
 
     private var formattedDate: String {
@@ -98,13 +105,18 @@ struct AddTransactionView: View {
                     // MARK: - Amount Input
                     amountInput
 
-                    // MARK: - Recent Categories
-                    if !recentCategoriesForType.isEmpty {
-                        recentCategoriesSection
-                    }
+                    // MARK: - Transfer Accounts (only for transfer type)
+                    if selectedType == .transfer {
+                        transferAccountsSection
+                    } else {
+                        // MARK: - Recent Categories
+                        if !recentCategoriesForType.isEmpty {
+                            recentCategoriesSection
+                        }
 
-                    // MARK: - Category Picker
-                    categoryPicker
+                        // MARK: - Category Picker
+                        categoryPicker
+                    }
 
                     // MARK: - Optional Fields
                     optionalFieldsSection
@@ -137,9 +149,10 @@ struct AddTransactionView: View {
                     selectedType = tx.type
                     selectedCategory = tx.category
                     selectedAccount = tx.account
+                    selectedDestinationAccount = tx.destinationAccount
                     note = tx.note
                     date = tx.date
-                    showOptionalFields = !tx.note.isEmpty || tx.account != nil
+                    showOptionalFields = !tx.note.isEmpty || tx.account != nil || tx.destinationAccount != nil
                 } else {
                     isAmountFocused = true
                     selectedAccount = accounts.first(where: { $0.isDefault }) ?? accounts.first
@@ -254,7 +267,7 @@ struct AddTransactionView: View {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedType = type
-                        if let first = filteredCategories.first {
+                        if type != .transfer, let first = filteredCategories.first {
                             selectedCategory = first
                         } else {
                             selectedCategory = nil
@@ -262,12 +275,14 @@ struct AddTransactionView: View {
                     }
                 } label: {
                     Text(type.displayName)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(
                             selectedType == type
-                                ? (type == .expense ? Color.red : Color.green)
+                                ? (type == .expense ? Color.red
+                                   : type == .income ? Color.green
+                                   : Color.blue)
                                 : Color.clear
                         )
                         .foregroundColor(selectedType == type ? .white : .primary)
@@ -289,7 +304,7 @@ struct AddTransactionView: View {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text("¥")
                     .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundColor(selectedType == .expense ? .red : .green)
+                    .foregroundColor(selectedType == .expense ? .red : selectedType == .income ? .green : .blue)
 
                 TextField("0.00", text: $amountText)
                     .font(.system(size: 48, weight: .bold, design: .rounded))
@@ -373,6 +388,72 @@ struct AddTransactionView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Transfer Accounts
+
+    private var transferAccountsSection: some View {
+        VStack(spacing: 12) {
+            Text("选择账户")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            // Source account
+            HStack {
+                Image(systemName: "arrow.up.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.title3)
+                Text("从")
+                    .font(.subheadline)
+                Picker("转出账户", selection: $selectedAccount) {
+                    Text("选择账户").tag(nil as Account?)
+                    ForEach(accounts) { account in
+                        Text(account.name).tag(account as Account?)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(.primary)
+                Spacer()
+                if let acc = selectedAccount {
+                    Text(acc.name)
+                        .foregroundColor(.primary)
+                        .font(.subheadline.weight(.medium))
+                }
+            }
+            .padding(10)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            // Arrow
+            Image(systemName: "arrow.down")
+                .foregroundColor(.secondary)
+
+            // Destination account
+            HStack {
+                Image(systemName: "arrow.down.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.title3)
+                Text("至")
+                    .font(.subheadline)
+                Picker("转入账户", selection: $selectedDestinationAccount) {
+                    Text("选择账户").tag(nil as Account?)
+                    ForEach(accounts.filter { $0.id != selectedAccount?.id }) { account in
+                        Text(account.name).tag(account as Account?)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(.primary)
+                Spacer()
+                if let dest = selectedDestinationAccount {
+                    Text(dest.name)
+                        .foregroundColor(.primary)
+                        .font(.subheadline.weight(.medium))
+                }
+            }
+            .padding(10)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
     // MARK: - Optional Fields
 
     private var optionalFieldsSection: some View {
@@ -406,25 +487,27 @@ struct AddTransactionView: View {
                             .font(.body)
                     }
 
-                    // Account
-                    HStack {
-                        Image(systemName: "wallet.pass")
-                            .frame(width: 24)
-                            .foregroundColor(.secondary)
-                        Picker("账户", selection: $selectedAccount) {
-                            Text("无").tag(nil as Account?)
-                            ForEach(accounts) { account in
-                                Text(account.name).tag(account as Account?)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        Spacer()
-                        if let acc = selectedAccount {
-                            Text(acc.name)
-                                .foregroundColor(.primary)
-                        } else {
-                            Text("不选择")
+                    // Account (hidden for transfer type)
+                    if selectedType != .transfer {
+                        HStack {
+                            Image(systemName: "wallet.pass")
+                                .frame(width: 24)
                                 .foregroundColor(.secondary)
+                            Picker("账户", selection: $selectedAccount) {
+                                Text("无").tag(nil as Account?)
+                                ForEach(accounts) { account in
+                                    Text(account.name).tag(account as Account?)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            Spacer()
+                            if let acc = selectedAccount {
+                                Text(acc.name)
+                                    .foregroundColor(.primary)
+                            } else {
+                                Text("不选择")
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
 
@@ -477,9 +560,16 @@ struct AddTransactionView: View {
         guard canSave else { return }
 
         if let tx = editingTransaction {
-            // Revert old account balance
+            // Revert old balances
             if let oldAccount = tx.account {
-                oldAccount.balance -= tx.signedAmount
+                if tx.type == .transfer {
+                    oldAccount.balance += abs(tx.amount)
+                } else {
+                    oldAccount.balance -= tx.signedAmount
+                }
+            }
+            if let oldDest = tx.destinationAccount, tx.type == .transfer {
+                oldDest.balance -= abs(tx.amount)
             }
 
             // Update transaction
@@ -487,11 +577,15 @@ struct AddTransactionView: View {
             tx.typeRaw = selectedType.rawValue
             tx.date = date
             tx.note = note.trimmingCharacters(in: .whitespaces)
-            tx.category = selectedCategory
+            tx.category = selectedType == .transfer ? nil : selectedCategory
             tx.account = selectedAccount
+            tx.destinationAccount = selectedType == .transfer ? selectedDestinationAccount : nil
 
-            // Apply new account balance
-            if let account = selectedAccount {
+            // Apply new balances
+            if selectedType == .transfer {
+                if let src = selectedAccount { src.balance -= abs(amount) }
+                if let dest = selectedDestinationAccount { dest.balance += abs(amount) }
+            } else if let account = selectedAccount {
                 account.balance += tx.signedAmount
             }
         } else {
@@ -500,13 +594,17 @@ struct AddTransactionView: View {
                 type: selectedType,
                 date: date,
                 note: note.trimmingCharacters(in: .whitespaces),
-                category: selectedCategory,
+                category: selectedType == .transfer ? nil : selectedCategory,
                 account: selectedAccount,
+                destinationAccount: selectedType == .transfer ? selectedDestinationAccount : nil,
                 createdByMember: currentMember
             )
             modelContext.insert(transaction)
 
-            if let account = selectedAccount {
+            if selectedType == .transfer {
+                if let src = selectedAccount { src.balance -= abs(amount) }
+                if let dest = selectedDestinationAccount { dest.balance += abs(amount) }
+            } else if let account = selectedAccount {
                 account.balance += transaction.signedAmount
             }
         }

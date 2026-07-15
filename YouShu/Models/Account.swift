@@ -18,6 +18,9 @@ final class Account {
     @Relationship(deleteRule: .nullify, inverse: \Transaction.account)
     var transactions: [Transaction]? = []
 
+    @Relationship(deleteRule: .nullify, inverse: \Transaction.destinationAccount)
+    var destinationTransactions: [Transaction]? = []
+
     init(
         id: UUID = UUID(),
         name: String,
