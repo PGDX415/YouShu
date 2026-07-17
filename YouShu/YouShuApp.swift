@@ -9,6 +9,7 @@ import CloudKit
 
 @main
 struct YouShuApp: App {
+    @AppStorage("appLockEnabled") private var appLockEnabled: Bool = false
     @State private var showSplash = true
     @State private var shareAcceptError: String?
 
@@ -64,10 +65,12 @@ struct YouShuApp: App {
                     SplashView(isActive: $showSplash)
                         .transition(.opacity)
                 } else {
-                    ContentView()
-                        .transition(.opacity)
-                        .environment(\.locale, systemLocale)
-                        .environment(\.calendar, Calendar.current)
+                    AppLockedContent(lockEnabled: appLockEnabled) {
+                        ContentView()
+                            .environment(\.locale, systemLocale)
+                            .environment(\.calendar, Calendar.current)
+                    }
+                    .transition(.opacity)
                 }
             }
             .animation(.easeInOut(duration: 0.5), value: showSplash)
@@ -121,5 +124,43 @@ struct YouShuApp: App {
         }
 
         container.add(fetchOp)
+    }
+}
+
+// MARK: - App Lock Wrapper
+
+private struct AppLockedContent<Content: View>: View {
+    let lockEnabled: Bool
+    @ViewBuilder let content: () -> Content
+
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isAuthenticated: Bool = false
+    @State private var needsAuth: Bool = true
+
+    var body: some View {
+        ZStack {
+            content()
+                .opacity(isAuthenticated || !lockEnabled ? 1 : 0)
+
+            if lockEnabled && !isAuthenticated {
+                LockView {
+                    isAuthenticated = true
+                }
+            }
+        }
+        .onAppear {
+            if lockEnabled {
+                isAuthenticated = false
+                needsAuth = true
+            } else {
+                isAuthenticated = true
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard lockEnabled else { return }
+            if phase == .background {
+                isAuthenticated = false
+            }
+        }
     }
 }

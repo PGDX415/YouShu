@@ -5,8 +5,21 @@
 
 import SwiftUI
 import SwiftData
+import LocalAuthentication
 
 struct SettingsView: View {
+    @AppStorage("appLockEnabled") private var lockEnabled: Bool = false
+
+    private var biometryIcon: String {
+        let ctx = LAContext()
+        _ = ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        switch ctx.biometryType {
+        case .faceID: return "faceid"
+        case .touchID: return "touchid"
+        default: return "lock.shield"
+        }
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -18,6 +31,14 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("家庭")
+                }
+
+                Section {
+                    Toggle(isOn: $lockEnabled) {
+                        Label("应用锁", systemImage: biometryIcon)
+                    }
+                } header: {
+                    Text("安全")
                 }
 
                 Section {
