@@ -74,49 +74,116 @@ enum ReceiptScanner {
 
     // MARK: - Amount Detection
 
+    /// Keywords that indicate a line is a non-amount identifier (order number, table ID, etc.)
+    private static let nonAmountKeywords: Set<String> = [
+        "单号", "编号", "订单号", "交易单号", "流水号", "桌号", "台号",
+        "序号", "数量", "件数", "电话", "手机", "会员", "微信", "支付宝",
+        "卡号", "账号", "积分", "优惠券", "代金券",
+    ]
+
+    private static func isSkippable(_ line: String) -> Bool {
+        let lower = line.lowercased()
+        return nonAmountKeywords.contains { lower.contains($0) }
+    }
+
     private static func findAmount(_ lines: [String]) -> Double? {
-        // Priority 1: "合计" / "总计" / "total" line
+        // Priority 1: 合计/总计/total/实付/应付/应收/找零 line
         for line in lines {
             let lower = line.lowercased()
             if lower.contains("合计") || lower.contains("总计")
                || lower.contains("total") || lower.contains("实付")
-               || lower.contains("应付") || lower.contains("应收") {
-                if let amt = extractNumber(line) { return amt }
+               || lower.contains("应付") || lower.contains("应收")
+               || lower.contains("找零") || lower.contains("消费") {
+                if let amt = extractPrice(line) { return amt }
             }
         }
 
-        // Priority 2: line with ¥ and a number
+        // Priority 2: line with ¥ or ￥
         for line in lines {
-            if (line.contains("¥") || line.contains("￥")) && line.range(of: #"\d"#, options: .regularExpression) != nil {
-                if let amt = extractNumber(line) { return amt }
+            if isSkippable(line) { continue }
+            if line.contains("¥") || line.contains("￥") {
+                if let amt = extractPrice(line) { return amt }
             }
         }
 
-        // Priority 3: any line with a number followed by 元
+        // Priority 3: line with 元
         for line in lines {
-            if let amt = extractNumber(line) { return amt }
+            if isSkippable(line) { continue }
+            if line.contains("元") {
+                if let amt = extractPrice(line) { return amt }
+            }
         }
 
-        return nil
+        // Priority 4: pick the largest likely-price number (has decimal: .00 .50 etc.)
+        var candidates: [(Double, String)] = []
+        for line in lines {
+            if isSkippable(line) { continue }
+            let nums = extractAllNumbers(line)
+            for num in nums where isLikelyPrice(num, context: line) {
+                candidates.append((num, line))
+            }
+        }
+        // Prefer numbers from total-related lines, then largest
+        candidates.sort { a, b in
+            let aTotal = ["合计", "总计", "total", "实付", "应付"].contains { a.1.contains($0) }
+            let bTotal = ["合计", "总计", "total", "实付", "应付"].contains { b.1.contains($0) }
+            if aTotal != bTotal { return aTotal }
+            return a.0 > b.0
+        }
+
+        return candidates.first?.0
     }
 
-    private static func extractNumber(_ text: String) -> Double? {
-        // Try: ¥123.45, 123.45元, 123元, 123, 123.45
+    /// Extract a price: ¥123.45, 123.45元, 123.45
+    private static func extractPrice(_ text: String) -> Double? {
         let patterns = [
             #"[¥￥]\s*(\d+(?:\.\d{1,2})?)"#,
             #"(\d+(?:\.\d{1,2})?)\s*元"#,
-            #"(\d+(?:\.\d{1,2})?)"#,
         ]
         for pattern in patterns {
-            let regex = try? NSRegularExpression(pattern: pattern)
-            let range = NSRange(text.startIndex..., in: text)
-            guard let match = regex?.firstMatch(in: text, range: range),
-                  let r = Range(match.range(at: 1), in: text) else { continue }
-            if let value = Double(text[r]), value > 0 {
-                return value
-            }
+            guard let match = firstRegexMatch(pattern, in: text),
+                  let value = Double(match), value > 0 else { continue }
+            return value
         }
         return nil
+    }
+
+    /// Extract all numeric values from a line
+    private static func extractAllNumbers(_ text: String) -> [Double] {
+        let pattern = #"(\d+(?:\.\d{1,2})?)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.matches(in: text, range: range).compactMap { match in
+            guard let r = Range(match.range(at: 1), in: text),
+                  let value = Double(text[r]), value > 0 else { return nil }
+            return value
+        }
+    }
+
+    /// Check if a number looks like a price (not an order ID or quantity)
+    private static func isLikelyPrice(_ value: Double, context line: String) -> Bool {
+        // Order IDs are typically long integers (> 6 digits) without decimals
+        let asInt = Int(value)
+        if value == Double(asInt) && asInt > 999999 { return false }
+
+        // Small integers (1-9) are likely quantities, not prices (unless very small receipt)
+        if value < 10 && value == Double(Int(value)) { return false }
+
+        // Numbers with decimal places (.00, .50 etc.) are very likely prices
+        if value != Double(Int(value)) { return true }
+
+        // Integer price: must have currency context
+        return line.contains("¥") || line.contains("￥") || line.contains("元")
+            || line.contains("合计") || line.contains("总计") || line.contains("total")
+            || line.contains("实付") || line.contains("应付")
+    }
+
+    private static func firstRegexMatch(_ pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let match = regex.firstMatch(in: text, range: range),
+              let r = Range(match.range(at: 1), in: text) else { return nil }
+        return String(text[r])
     }
 
     // MARK: - Merchant Detection
