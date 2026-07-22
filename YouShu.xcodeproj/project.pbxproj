@@ -260,6 +260,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "有数";
 				INFOPLIST_KEY_CKSharingSupported = YES;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "需要 Face ID 验证身份后才能进入有数。";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于拍摄收据小票，自动识别金额和商户信息。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
@@ -297,6 +298,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "有数";
 				INFOPLIST_KEY_CKSharingSupported = YES;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "需要 Face ID 验证身份后才能进入有数。";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于拍摄收据小票，自动识别金额和商户信息。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";

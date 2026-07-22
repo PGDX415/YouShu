@@ -17,6 +17,7 @@ struct NLInputView: View {
 
     @State private var inputText: String = ""
     @State private var showSaveAnimation: Bool = false
+    @State private var showReceiptScanner = false
     @FocusState private var isFocused: Bool
 
     private var currentMember: FamilyMember? {
@@ -73,6 +74,9 @@ struct NLInputView: View {
                 }
             }
             .onAppear { isFocused = true }
+            .sheet(isPresented: $showReceiptScanner) {
+                ReceiptScanView()
+            }
             .overlay {
                 if showSaveAnimation {
                     saveOverlay
@@ -95,6 +99,14 @@ struct NLInputView: View {
                     .focused($isFocused)
                     .lineLimit(1...3)
                     .autocorrectionDisabled(false)
+
+                Button {
+                    showReceiptScanner = true
+                } label: {
+                    Image(systemName: "camera.fill")
+                        .font(.title3)
+                        .foregroundColor(.accentColor)
+                }
             }
             .padding(14)
             .background(Color(.systemGray6))
