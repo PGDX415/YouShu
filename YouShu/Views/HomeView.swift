@@ -19,6 +19,7 @@ struct HomeView: View {
     @State private var showFilter = false
     @State private var showNLInput = false
     @State private var showReceiptScanner = false
+    @State private var showInsight = false
     @State private var showMemberOnly: Bool = false
     @State private var showDeleteAlert = false
     @State private var transactionToDelete: Transaction?
@@ -179,6 +180,13 @@ struct HomeView: View {
                                 .symbolRenderingMode(.hierarchical)
                         }
                         Button {
+                            showInsight = true
+                        } label: {
+                            Image(systemName: "chart.bar.doc.horizontal.fill")
+                                .font(.title3)
+                                .symbolRenderingMode(.hierarchical)
+                        }
+                        Button {
                             showNLInput = true
                         } label: {
                             Image(systemName: "sparkles")
@@ -219,6 +227,9 @@ struct HomeView: View {
             }
             .sheet(item: $editingTransaction) { transaction in
                 AddTransactionView(editingTransaction: transaction)
+            }
+            .sheet(isPresented: $showInsight) {
+                InsightView()
             }
             .sheet(isPresented: $showReceiptScanner) {
                 ReceiptScanView()
