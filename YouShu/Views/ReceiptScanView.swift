@@ -19,8 +19,10 @@ struct ReceiptScanView: View {
     @State private var capturedImage: UIImage?
     @State private var scanResult: ReceiptScanResult?
     @State private var isScanning = false
-    @State private var showCamera = true
+    @State private var showInitialScreen = true
     @State private var showSaveAnimation = false
+    @State private var showCameraPicker = false
+    @State private var showPhotoPicker = false
 
     private var currentMember: FamilyMember? {
         members.first(where: { $0.role == .creator })
@@ -29,8 +31,8 @@ struct ReceiptScanView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if showCamera {
-                    cameraView
+                if showInitialScreen {
+                    choiceView
                 } else if let result = scanResult {
                     resultView(result)
                 }
@@ -40,6 +42,22 @@ struct ReceiptScanView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消") { dismiss() }
+                }
+            }
+            .fullScreenCover(isPresented: $showCameraPicker) {
+                CameraPickerView(image: $capturedImage) {
+                    showCameraPicker = false
+                }
+            }
+            .fullScreenCover(isPresented: $showPhotoPicker) {
+                PhotoPickerView(image: $capturedImage) {
+                    showPhotoPicker = false
+                }
+            }
+            .onChange(of: capturedImage) { _, newImage in
+                if let img = newImage {
+                    showInitialScreen = false
+                    startScanning(img)
                 }
             }
             .overlay {
@@ -53,35 +71,65 @@ struct ReceiptScanView: View {
         }
     }
 
-    // MARK: - Camera
+    // MARK: - Choice View
 
-    private var cameraView: some View {
-        VStack(spacing: 0) {
-            // Camera placeholder — use system camera picker
-            ImagePickerView(image: $capturedImage) {
-                if let img = capturedImage {
-                    startScanning(img)
-                }
-            }
-            .ignoresSafeArea(edges: .top)
+    private var choiceView: some View {
+        VStack(spacing: 28) {
+            Spacer()
 
-            // Bottom instruction
-            VStack(spacing: 12) {
-                Label("将小票对准框内拍摄", systemImage: "camera.viewfinder")
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 60))
+                .foregroundColor(.accentColor)
+
+            VStack(spacing: 6) {
+                Text("拍照识别小票")
+                    .font(.title2.weight(.semibold))
+                Text("支持中文和英文收据\n设备端识别，不上传云端")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                Text("支持中文、英文收据，识别金额和商户")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            .padding(.vertical, 20)
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemBackground))
-        }
-        .onChange(of: capturedImage) { _, newImage in
-            if let img = newImage {
-                startScanning(img)
+
+            VStack(spacing: 14) {
+                Button {
+                    showCameraPicker = true
+                } label: {
+                    HStack {
+                        Image(systemName: "camera.fill")
+                        Text("拍照")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color.accentColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                Button {
+                    showPhotoPicker = true
+                } label: {
+                    HStack {
+                        Image(systemName: "photo.on.rectangle")
+                        Text("从相册选择")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.accentColor)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color.accentColor.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
             }
+            .padding(.horizontal, 32)
+
+            Text("提示：也可以在相册中截取线上小票图片进行识别")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            Spacer()
         }
     }
 
@@ -266,9 +314,9 @@ struct ReceiptScanView: View {
                         // Retake
                         capturedImage = nil
                         scanResult = nil
-                        showCamera = true
+                        showInitialScreen = true
                     } label: {
-                        Label("重新拍照", systemImage: "arrow.triangle.2.circlepath.camera")
+                        Label("重新选择", systemImage: "arrow.triangle.2.circlepath.camera")
                             .font(.subheadline)
                     }
                 }
@@ -283,7 +331,6 @@ struct ReceiptScanView: View {
 
     private func startScanning(_ image: UIImage) {
         isScanning = true
-        showCamera = false
 
         Task {
             let result = await ReceiptScanner.scan(image, categories: categories)
@@ -367,9 +414,9 @@ struct ReceiptScanView: View {
 
 // MARK: - Camera Image Picker
 
-struct ImagePickerView: UIViewControllerRepresentable {
+struct CameraPickerView: UIViewControllerRepresentable {
     @Binding var image: UIImage?
-    var onDismiss: (() -> Void)?
+    var onDismiss: () -> Void
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
@@ -385,28 +432,52 @@ struct ImagePickerView: UIViewControllerRepresentable {
     }
 
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePickerView
+        let parent: CameraPickerView
+        init(_ parent: CameraPickerView) { self.parent = parent }
 
-        init(_ parent: ImagePickerView) {
-            self.parent = parent
-        }
-
-        func imagePickerController(
-            _ picker: UIImagePickerController,
-            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
-        ) {
-            if let img = info[.originalImage] as? UIImage {
-                parent.image = img
-            }
-            picker.dismiss(animated: true) {
-                self.parent.onDismiss?()
-            }
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let img = info[.originalImage] as? UIImage { parent.image = img }
+            picker.dismiss(animated: true) { self.parent.onDismiss() }
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            picker.dismiss(animated: true) {
-                self.parent.onDismiss?()
-            }
+            picker.dismiss(animated: true) { self.parent.onDismiss() }
+        }
+    }
+}
+
+// MARK: - Photo Library Picker
+
+struct PhotoPickerView: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    var onDismiss: () -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: PhotoPickerView
+        init(_ parent: PhotoPickerView) { self.parent = parent }
+
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let img = info[.originalImage] as? UIImage { parent.image = img }
+            picker.dismiss(animated: true) { self.parent.onDismiss() }
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true) { self.parent.onDismiss() }
         }
     }
 }
