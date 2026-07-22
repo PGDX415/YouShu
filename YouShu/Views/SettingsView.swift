@@ -9,6 +9,29 @@ import LocalAuthentication
 
 struct SettingsView: View {
     @AppStorage("appLockEnabled") private var lockEnabled: Bool = false
+    @AppStorage("appAppearance") private var appearance: Appearance = .system
+
+    enum Appearance: Int, CaseIterable {
+        case system = 0
+        case light = 1
+        case dark = 2
+
+        var label: String {
+            switch self {
+            case .system: return "跟随系统"
+            case .light:  return "浅色模式"
+            case .dark:   return "深色模式"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .system: return "circle.lefthalf.striped.horizontal"
+            case .light:  return "sun.max"
+            case .dark:   return "moon"
+            }
+        }
+    }
 
     private var biometryIcon: String {
         let ctx = LAContext()
@@ -42,6 +65,15 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Picker(selection: $appearance) {
+                        ForEach(Appearance.allCases, id: \.self) { mode in
+                            Label(mode.label, systemImage: mode.icon)
+                                .tag(mode)
+                        }
+                    } label: {
+                        Label("外观模式", systemImage: appearance.icon)
+                    }
+
                     NavigationLink {
                         BudgetManageView()
                     } label: {

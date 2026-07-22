@@ -10,8 +10,17 @@ import CloudKit
 @main
 struct YouShuApp: App {
     @AppStorage("appLockEnabled") private var appLockEnabled: Bool = false
+    @AppStorage("appAppearance") private var appearanceRaw: Int = 0
     @State private var showSplash = true
     @State private var shareAcceptError: String?
+
+    private var effectiveColorScheme: ColorScheme? {
+        switch appearanceRaw {
+        case 1: return .light
+        case 2: return .dark
+        default: return nil  // follow system
+        }
+    }
 
     private var systemLocale: Locale {
         Locale(identifier: Locale.preferredLanguages.first ?? "zh-Hans")
@@ -74,6 +83,7 @@ struct YouShuApp: App {
                 }
             }
             .animation(.easeInOut(duration: 0.5), value: showSplash)
+            .preferredColorScheme(effectiveColorScheme)
             .onOpenURL { url in
                 handleShareURL(url)
             }
