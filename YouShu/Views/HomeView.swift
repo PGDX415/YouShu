@@ -108,9 +108,14 @@ struct HomeView: View {
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
 
+                    // Smart actions
+                    smartActionsRow
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+
                     if !accounts.isEmpty {
                         accountsSummaryView
-                            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
+                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 0, trailing: 0))
                             .listRowBackground(Color.clear)
                     }
 
@@ -119,10 +124,6 @@ struct HomeView: View {
                             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                             .listRowBackground(Color.clear)
                     }
-
-                    quickAddButton
-                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 4, trailing: 0))
-                        .listRowBackground(Color.clear)
                 }
 
                 // Recent transactions
@@ -170,29 +171,17 @@ struct HomeView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("有数")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showAddTransaction = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button {
-                            showReceiptScanner = true
-                        } label: {
-                            Image(systemName: "camera.fill")
-                                .font(.title3)
-                                .symbolRenderingMode(.hierarchical)
-                        }
-                        Button {
-                            showInsight = true
-                        } label: {
-                            Image(systemName: "chart.bar.doc.horizontal.fill")
-                                .font(.title3)
-                                .symbolRenderingMode(.hierarchical)
-                        }
-                        Button {
-                            showNLInput = true
-                        } label: {
-                            Image(systemName: "sparkles")
-                                .font(.title3)
-                                .symbolRenderingMode(.hierarchical)
-                        }
+                    HStack(spacing: 10) {
                         Button {
                             showFilter = true
                         } label: {
@@ -206,17 +195,9 @@ struct HomeView: View {
                                     showMemberOnly.toggle()
                                 }
                             } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: showMemberOnly ? "person.fill" : "person.3.fill")
-                                        .font(.system(size: 12))
-                                    Text(showMemberOnly ? "仅我" : "全部")
-                                        .font(.caption2.weight(.medium))
-                                }
-                                .foregroundColor(showMemberOnly ? .white : .accentColor)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(showMemberOnly ? Color.accentColor : Color(.systemGray6))
-                                .clipShape(Capsule())
+                                Image(systemName: showMemberOnly ? "person.fill" : "person.3.fill")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(showMemberOnly ? .accentColor : .secondary)
                             }
                         }
                     }
@@ -253,6 +234,60 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Smart Actions
+
+    private var smartActionsRow: some View {
+        HStack(spacing: 10) {
+            smartActionButton(
+                icon: "sparkles", color: .purple,
+                title: "智能记账",
+                subtitle: "自然语言"
+            ) { showNLInput = true }
+
+            smartActionButton(
+                icon: "camera.fill", color: .blue,
+                title: "拍照记账",
+                subtitle: "扫描小票"
+            ) { showReceiptScanner = true }
+
+            smartActionButton(
+                icon: "chart.bar.doc.horizontal.fill", color: .orange,
+                title: "月度小结",
+                subtitle: "消费洞察"
+            ) { showInsight = true }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func smartActionButton(
+        icon: String, color: Color,
+        title: String, subtitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(color.opacity(0.12))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: icon)
+                        .font(.system(size: 18))
+                        .foregroundColor(color)
+                }
+                Text(title)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Monthly Summary
