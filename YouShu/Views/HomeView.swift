@@ -113,6 +113,10 @@ struct HomeView: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                         .listRowBackground(Color.clear)
 
+                    quickAddButton
+                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+
                     if !accounts.isEmpty {
                         accountsSummaryView
                             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 0, trailing: 0))
@@ -171,15 +175,6 @@ struct HomeView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("有数")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showAddTransaction = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .symbolRenderingMode(.hierarchical)
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 10) {
                         Button {
