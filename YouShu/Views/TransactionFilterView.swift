@@ -16,6 +16,7 @@ struct FilterCriteria: Equatable {
     var selectedType: TransactionType?
     var startDate: Date?
     var endDate: Date?
+    var searchText: String = ""
 
     var hasActiveFilters: Bool {
         selectedCategory != nil ||
@@ -24,11 +25,13 @@ struct FilterCriteria: Equatable {
         !maxAmount.isEmpty ||
         selectedType != nil ||
         startDate != nil ||
-        endDate != nil
+        endDate != nil ||
+        !searchText.isEmpty
     }
 
     func apply(to transactions: [Transaction]) -> [Transaction] {
-        transactions.filter { tx in
+        let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        return transactions.filter { tx in
             if let cat = selectedCategory, tx.category?.id != cat.id { return false }
             if let acc = selectedAccount, tx.account?.id != acc.id { return false }
             if let type = selectedType, tx.type != type { return false }
@@ -36,8 +39,14 @@ struct FilterCriteria: Equatable {
             if let max = Double(maxAmount), tx.amount > max { return false }
             if let start = startDate, tx.date < start { return false }
             if let end = endDate, tx.date > Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end {
-                // Include the entire end date
                 return false
+            }
+            if !query.isEmpty {
+                let matchNote = tx.note.lowercased().contains(query)
+                let matchCat = tx.category?.name.lowercased().contains(query) ?? false
+                let matchAcc = tx.account?.name.lowercased().contains(query) ?? false
+                let matchDest = tx.destinationAccount?.name.lowercased().contains(query) ?? false
+                if !matchNote && !matchCat && !matchAcc && !matchDest { return false }
             }
             return true
         }
@@ -131,8 +140,31 @@ struct TransactionFilterView: View {
     // MARK: - Filter Bar
 
     private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        VStack(spacing: 10) {
+            // Search bar
             HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("搜索备注、分类、账户...", text: $criteria.searchText)
+                    .font(.subheadline)
+                    .autocorrectionDisabled()
+                if !criteria.searchText.isEmpty {
+                    Button {
+                        criteria.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            // Filter chips
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
                 // Type filter
                 Menu {
                     Button { criteria.selectedType = nil } label: {
@@ -243,10 +275,14 @@ struct TransactionFilterView: View {
                         isActive: criteria.startDate != nil || criteria.endDate != nil
                     )
                 }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
         }
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .padding(.horizontal, 16)
         .background(Color(.systemGroupedBackground))
     }
 
