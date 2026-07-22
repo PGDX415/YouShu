@@ -15,6 +15,7 @@ struct CategoryDetailView: View {
 
     @State private var showDeleteAlert = false
     @State private var transactionToDelete: Transaction?
+    @State private var transactionToEdit: Transaction?
 
     private var filteredTransactions: [Transaction] {
         let start: Date
@@ -76,7 +77,7 @@ struct CategoryDetailView: View {
                                 if !transaction.note.isEmpty {
                                     Text(transaction.note)
                                         .font(.subheadline)
-                                        .lineLimit(1)
+                                        .lineLimit(2)
                                 } else {
                                     Text("无备注")
                                         .font(.subheadline)
@@ -94,6 +95,14 @@ struct CategoryDetailView: View {
                                 .foregroundColor(.red)
                         }
                         .padding(.vertical, 4)
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                transactionToEdit = transaction
+                            } label: {
+                                Label("编辑", systemImage: "pencil")
+                            }
+                            .tint(.orange)
+                        }
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 transactionToDelete = transaction
@@ -109,6 +118,9 @@ struct CategoryDetailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("交易明细")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $transactionToEdit) { tx in
+            AddTransactionView(editingTransaction: tx)
+        }
         .alert("删除交易", isPresented: $showDeleteAlert) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) {

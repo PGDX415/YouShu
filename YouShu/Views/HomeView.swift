@@ -472,7 +472,7 @@ struct HomeView: View {
                     Text(transaction.note)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
             }
 

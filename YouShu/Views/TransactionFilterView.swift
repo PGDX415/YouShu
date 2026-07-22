@@ -59,6 +59,7 @@ struct TransactionFilterView: View {
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var transactionToDelete: Transaction?
+    @State private var transactionToEdit: Transaction?
 
     private var expenseCategories: [Category] { categories.filter { $0.type == .expense } }
     private var incomeCategories: [Category] { categories.filter { $0.type == .income } }
@@ -101,6 +102,9 @@ struct TransactionFilterView: View {
                         }
                     }
                 }
+            }
+            .sheet(item: $transactionToEdit) { tx in
+                AddTransactionView(editingTransaction: tx)
             }
             .alert("删除交易", isPresented: $showDeleteAlert) {
                 Button("取消", role: .cancel) {}
@@ -399,6 +403,14 @@ struct TransactionFilterView: View {
         List {
             ForEach(filteredTransactions.list) { tx in
                 transactionRow(tx)
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            transactionToEdit = tx
+                        } label: {
+                            Label("编辑", systemImage: "pencil")
+                        }
+                        .tint(.orange)
+                    }
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
                             transactionToDelete = tx
@@ -438,6 +450,13 @@ struct TransactionFilterView: View {
                 } else {
                     Text(tx.category?.name ?? "未分类")
                         .font(.system(size: 14, weight: .medium))
+                }
+                let trimmedNote = tx.note.trimmingCharacters(in: .whitespaces)
+                if !trimmedNote.isEmpty {
+                    Text(trimmedNote)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
                 }
                 HStack(spacing: 4) {
                     if let member = tx.createdByMember {

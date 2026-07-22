@@ -9,7 +9,10 @@ import LocalAuthentication
 struct LockView: View {
     let onUnlock: () -> Void
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var authError: String?
+    @State private var authTask: Task<Void, Never>?
+    @State private var isManualAuth = false
 
     private var biometryName: String {
         let ctx = LAContext()
@@ -57,6 +60,7 @@ struct LockView: View {
                 }
 
                 Button {
+                    isManualAuth = true
                     authenticate()
                 } label: {
                     HStack(spacing: 8) {
@@ -80,16 +84,49 @@ struct LockView: View {
                 Spacer()
             }
         }
-        .onAppear { authenticate() }
+        .onAppear {
+            isManualAuth = false
+            scheduleAuth(delay: 0.5)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                cancelAuth()
+            } else if phase == .active {
+                isManualAuth = false
+                scheduleAuth(delay: 0.5)
+            }
+        }
+        .onDisappear {
+            cancelAuth()
+        }
     }
 
-    private func authenticate() {
+    // MARK: - Authentication
+
+    private func scheduleAuth(delay: TimeInterval) {
+        cancelAuth()
+        authTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            performAuth()
+        }
+    }
+
+    private func cancelAuth() {
+        authTask?.cancel()
+        authTask = nil
+    }
+
+    @MainActor
+    private func performAuth() {
         authError = nil
         let context = LAContext()
-        var error: NSError?
+        var nsError: NSError?
 
-        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            authError = error?.localizedDescription ?? "设备不支持认证"
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &nsError) else {
+            if isManualAuth {
+                authError = laErrorMessage(nsError)
+            }
             return
         }
 
@@ -98,10 +135,55 @@ struct LockView: View {
             DispatchQueue.main.async {
                 if success {
                     onUnlock()
-                } else {
-                    authError = error?.localizedDescription ?? "验证失败"
+                } else if let laError = error as? LAError {
+                    switch laError.code {
+                    case .userCancel, .systemCancel, .appCancel,
+                         .biometryNotAvailable, .biometryNotEnrolled:
+                        // Transient errors — ignore during auto-auth, show during manual
+                        if isManualAuth {
+                            authError = laErrorMessage(error as NSError?)
+                        }
+                    default:
+                        authError = laErrorMessage(error as NSError?)
+                    }
+                } else if isManualAuth {
+                    authError = laErrorMessage(error as NSError?)
                 }
             }
+        }
+    }
+
+    private func authenticate() {
+        cancelAuth()
+        Task { @MainActor in
+            performAuth()
+        }
+    }
+
+    /// Map LAError to a Chinese user-facing message.
+    private func laErrorMessage(_ error: NSError?) -> String {
+        guard let laError = error as? LAError else {
+            return "验证失败，请重试"
+        }
+        switch laError.code {
+        case .userCancel:
+            return "已取消验证"
+        case .userFallback:
+            return "请使用密码验证"
+        case .systemCancel:
+            return "验证被系统中断，请重试"
+        case .passcodeNotSet:
+            return "设备未设置密码"
+        case .biometryNotAvailable:
+            return "生物识别不可用，请使用密码"
+        case .biometryNotEnrolled:
+            return "未录入\(biometryName)，请在系统设置中添加"
+        case .biometryLockout:
+            return "\(biometryName)已被锁定，请使用密码解锁"
+        case .biometryDisconnected:
+            return "\(biometryName)已断开连接"
+        default:
+            return "验证失败，请重试"
         }
     }
 }
