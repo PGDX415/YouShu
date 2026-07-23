@@ -20,6 +20,8 @@ struct HomeView: View {
     @State private var showNLInput = false
     @State private var showReceiptScanner = false
     @State private var showInsight = false
+    @State private var selectedBudget: Budget?
+    @State private var selectedBudgetCategory: Category?
     @State private var showMemberOnly: Bool = false
     @State private var showDeleteAlert = false
     @State private var transactionToDelete: Transaction?
@@ -203,6 +205,11 @@ struct HomeView: View {
             }
             .sheet(item: $editingTransaction) { transaction in
                 AddTransactionView(editingTransaction: transaction)
+            }
+            .sheet(item: $selectedBudget) { budget in
+                if let cat = selectedBudgetCategory ?? budget.category {
+                    BudgetDetailView(budget: budget, category: cat)
+                }
             }
             .sheet(isPresented: $showInsight) {
                 InsightView()
@@ -401,51 +408,57 @@ struct HomeView: View {
         let progress = limit > 0 ? min(spent / limit, 1.0) : 0
         let isOver = spent > limit && limit > 0
 
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Image(systemName: category.icon)
-                    .font(.system(size: 10))
-                    .foregroundColor(category.color)
-                Text(category.name)
-                    .font(.system(size: 11, weight: .medium))
-                Spacer()
-                if isOver {
-                    Image(systemName: "exclamationmark.triangle.fill")
+        return Button {
+            selectedBudget = budget
+            selectedBudgetCategory = category
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 4) {
+                    Image(systemName: category.icon)
                         .font(.system(size: 10))
-                        .foregroundColor(.red)
+                        .foregroundColor(category.color)
+                    Text(category.name)
+                        .font(.system(size: 11, weight: .medium))
+                    Spacer()
+                    if isOver {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.red)
+                    }
+                }
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color(.systemGray5))
+                            .frame(height: 4)
+
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(isOver ? Color.red : category.color)
+                            .frame(width: geo.size.width * progress, height: 4)
+                    }
+                }
+                .frame(height: 4)
+
+                HStack {
+                    Text("¥\(spent.formattedAmount0)/¥\(limit.formattedAmount0)")
+                        .font(.system(size: 10))
+                        .foregroundColor(isOver ? .red : .secondary)
+                    Spacer()
+                    if progress >= 1 && limit > 0 {
+                        Text("超支!")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.red)
+                    }
                 }
             }
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color(.systemGray5))
-                        .frame(height: 4)
-
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(isOver ? Color.red : category.color)
-                        .frame(width: geo.size.width * progress, height: 4)
-                }
-            }
-            .frame(height: 4)
-
-            HStack {
-                Text("¥\(spent.formattedAmount0)/¥\(limit.formattedAmount0)")
-                    .font(.system(size: 10))
-                    .foregroundColor(isOver ? .red : .secondary)
-                Spacer()
-                if progress >= 1 && limit > 0 {
-                    Text("超支!")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.red)
-                }
-            }
+            .padding(10)
+            .frame(width: 140)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
-        .padding(10)
-        .frame(width: 140)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .buttonStyle(.plain)
     }
 
     // MARK: - Quick Add Button
