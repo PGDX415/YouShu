@@ -8,7 +8,12 @@ import SwiftData
 
 struct BudgetDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Query private var allTransactions: [Transaction]
+
+    @State private var showDeleteAlert = false
+    @State private var transactionToDelete: Transaction?
+    @State private var transactionToEdit: Transaction?
 
     let budget: Budget
     let category: Category
@@ -68,6 +73,25 @@ struct BudgetDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
+                }
+            }
+            .sheet(item: $transactionToEdit) { tx in
+                AddTransactionView(editingTransaction: tx)
+            }
+            .alert("删除交易", isPresented: $showDeleteAlert) {
+                Button("取消", role: .cancel) {}
+                Button("删除", role: .destructive) {
+                    if let tx = transactionToDelete {
+                        if let account = tx.account {
+                            account.balance -= tx.signedAmount
+                        }
+                        modelContext.delete(tx)
+                        try? modelContext.save()
+                    }
+                }
+            } message: {
+                if let tx = transactionToDelete {
+                    Text("确定要删除这笔 ¥\(tx.amount.formattedAmount) 的交易记录吗？")
                 }
             }
         }
@@ -181,6 +205,22 @@ struct BudgetDetailView: View {
                             .foregroundColor(.red)
                     }
                     .padding(.vertical, 4)
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            transactionToEdit = tx
+                        } label: {
+                            Label("编辑", systemImage: "pencil")
+                        }
+                        .tint(.orange)
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            transactionToDelete = tx
+                            showDeleteAlert = true
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                    }
                 }
             } header: {
                 HStack {
