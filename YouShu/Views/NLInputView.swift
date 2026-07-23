@@ -112,9 +112,24 @@ struct NLInputView: View {
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 14))
 
-            if !inputText.isEmpty {
-                HStack {
-                    Spacer()
+            HStack {
+                Button {
+                    if let text = UIPasteboard.general.string, !text.isEmpty {
+                        inputText = text
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.on.clipboard")
+                            .font(.caption)
+                        Text("粘贴剪贴板内容")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.accentColor)
+                }
+
+                Spacer()
+
+                if !inputText.isEmpty {
                     Button {
                         inputText = ""
                     } label: {
@@ -122,6 +137,7 @@ struct NLInputView: View {
                     }
                 }
             }
+            .padding(.horizontal, 4)
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
