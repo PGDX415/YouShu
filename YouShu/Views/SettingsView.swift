@@ -97,6 +97,12 @@ struct SettingsView: View {
 
                 Section {
                     NavigationLink {
+                        HelpView()
+                    } label: {
+                        Label("使用指南", systemImage: "questionmark.circle")
+                    }
+
+                    NavigationLink {
                         DataManageView()
                     } label: {
                         Label("数据管理", systemImage: "externaldrive")
