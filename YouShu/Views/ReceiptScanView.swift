@@ -23,6 +23,7 @@ struct ReceiptScanView: View {
     @State private var showSaveAnimation = false
     @State private var showCameraPicker = false
     @State private var showPhotoPicker = false
+    @State private var isPaymentMode = false
 
     private var currentMember: FamilyMember? {
         members.first(where: { $0.role == .creator })
@@ -37,7 +38,7 @@ struct ReceiptScanView: View {
                     resultView(result)
                 }
             }
-            .navigationTitle("拍照记账")
+            .navigationTitle(isPaymentMode ? "支付截图" : "拍照记账")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -82,9 +83,9 @@ struct ReceiptScanView: View {
                 .foregroundColor(.accentColor)
 
             VStack(spacing: 6) {
-                Text("拍照识别小票")
+                Text("拍照识别")
                     .font(.title2.weight(.semibold))
-                Text("支持中文和英文收据\n设备端识别，不上传云端")
+                Text("支持收据小票和支付截图\n设备端识别，不上传云端")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -92,6 +93,7 @@ struct ReceiptScanView: View {
 
             VStack(spacing: 14) {
                 Button {
+                    isPaymentMode = false
                     showCameraPicker = true
                 } label: {
                     HStack {
@@ -107,11 +109,12 @@ struct ReceiptScanView: View {
                 }
 
                 Button {
+                    isPaymentMode = false
                     showPhotoPicker = true
                 } label: {
                     HStack {
                         Image(systemName: "photo.on.rectangle")
-                        Text("从相册选择")
+                        Text("小票 / 收据")
                     }
                     .font(.headline)
                     .foregroundColor(.accentColor)
@@ -120,10 +123,26 @@ struct ReceiptScanView: View {
                     .background(Color.accentColor.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+
+                Button {
+                    isPaymentMode = true
+                    showPhotoPicker = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "text.rectangle.page")
+                        Text("微信 / 支付宝支付截图")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.green)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color.green.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
             }
             .padding(.horizontal, 32)
 
-            Text("提示：也可以在相册中截取线上小票图片进行识别")
+            Text("提示：截取微信或支付宝付款成功页面，一键识别")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -315,6 +334,7 @@ struct ReceiptScanView: View {
                         capturedImage = nil
                         scanResult = nil
                         showInitialScreen = true
+                        isPaymentMode = false
                     } label: {
                         Label("重新选择", systemImage: "arrow.triangle.2.circlepath.camera")
                             .font(.subheadline)
@@ -333,7 +353,12 @@ struct ReceiptScanView: View {
         isScanning = true
 
         Task {
-            let result = await ReceiptScanner.scan(image, categories: categories)
+            let result: ReceiptScanResult
+            if isPaymentMode {
+                result = await PaymentScreenshotScanner.scan(image, categories: categories)
+            } else {
+                result = await ReceiptScanner.scan(image, categories: categories)
+            }
             await MainActor.run {
                 scanResult = result
                 isScanning = false
@@ -352,6 +377,9 @@ struct ReceiptScanView: View {
         let note: String = {
             var parts: [String] = []
             if let merchant = result.merchant { parts.append(merchant) }
+            if isPaymentMode && parts.isEmpty {
+                parts.append("微信/支付宝支付")
+            }
             return parts.joined(separator: " · ")
         }()
 
