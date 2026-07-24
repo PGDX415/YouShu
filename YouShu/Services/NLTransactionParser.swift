@@ -95,14 +95,118 @@ enum NLTransactionParser {
     // MARK: - Amount
 
     private static func extractAmount(_ text: String) -> Double? {
-        let pattern = #"(\d+(?:\.\d{1,2})?)\s*(?:元|块|¥)?"#
-        let regex = try? NSRegularExpression(pattern: pattern)
-        let range = NSRange(text.startIndex..., in: text)
-        guard let match = regex?.firstMatch(in: text, range: range),
-              let r = Range(match.range(at: 1), in: text) else {
+        // 1. Arabic numeral: 35元, ¥35, 35块, 35
+        let arabicPattern = #"(\d+(?:\.\d{1,2})?)\s*(?:元|块|¥)?"#
+        if let match = firstRegexMatch(arabicPattern, in: text),
+           let value = Double(match) {
+            return value
+        }
+
+        // 2. Chinese numeral: 二十五块, 一百二十元, 三千五
+        return extractChineseAmount(text)
+    }
+
+    /// Parse Chinese numeral amounts like 二十五块 → 25.0, 一百五 → 150.0
+    private static func extractChineseAmount(_ text: String) -> Double? {
+        let chineseDigitPattern = #"[零〇一二三四五六七八九十百千万两半点]+"#
+        let unitPattern = #"(?:块|元|块钱|元钱)"#
+
+        guard let digitRegex = try? NSRegularExpression(pattern: chineseDigitPattern),
+              let unitRegex = try? NSRegularExpression(pattern: unitPattern) else {
             return nil
         }
-        return Double(text[r])
+
+        let nsText = text as NSString
+        let digitMatches = digitRegex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        let unitMatches = unitRegex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+
+        for dMatch in digitMatches {
+            let digitStr = nsText.substring(with: dMatch.range)
+            guard let baseValue = chineseToDouble(digitStr), baseValue > 0 else { continue }
+
+            // Check if there's a following unit (块/元)
+            let afterDigit = dMatch.range.location + dMatch.range.length
+            var hasUnit = false
+            for uMatch in unitMatches {
+                if uMatch.range.location >= afterDigit - 1 && uMatch.range.location <= afterDigit + 2 {
+                    hasUnit = true
+                    break
+                }
+            }
+
+            if hasUnit || text.contains("花了") || text.contains("买了") || text.contains("用了") {
+                return baseValue
+            }
+        }
+
+        return nil
+    }
+
+    /// Convert Chinese numeral string to integer. e.g., 二十五 → 25, 一百二十 → 120, 三千五 → 3500
+    private static func chineseToDouble(_ s: String) -> Double? {
+        let digitMap: [Character: Int] = [
+            "零": 0, "〇": 0, "一": 1, "二": 2, "三": 3, "四": 4,
+            "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "两": 2,
+        ]
+        let unitMap: [Character: Int] = [
+            "十": 10, "百": 100, "千": 1000, "万": 10000,
+        ]
+
+        let chars = Array(s)
+        var total = 0.0
+        var current = 0
+        var lastUnit = 1
+
+        for (i, ch) in chars.enumerated() {
+            if ch == "点" {
+                // Parse fractional part
+                let frac = chars[(i + 1)...].compactMap { digitMap[$0] }
+                if !frac.isEmpty {
+                    var decimal = 0.0
+                    var divisor = 10.0
+                    for d in frac {
+                        decimal += Double(d) / divisor
+                        divisor *= 10
+                    }
+                    return total + Double(current) + decimal
+                }
+                break
+            }
+
+            if ch == "半" {
+                total += Double(current) + 0.5
+                current = 0
+                continue
+            }
+
+            if let digit = digitMap[ch] {
+                current = current * 10 + digit
+            } else if let unit = unitMap[ch] {
+                let value = current == 0 ? 1 : current
+                if unit >= 10000 {
+                    // 万: multiply what we have
+                    total += Double(value * unit)
+                } else if unit >= lastUnit {
+                    total += Double(value * unit)
+                } else {
+                    total += Double(value) * Double(unit)
+                }
+                current = 0
+                lastUnit = unit
+            }
+        }
+
+        total += Double(current)
+        return total
+    }
+
+    /// Convenience: first regex match group
+    private static func firstRegexMatch(_ pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let match = regex.firstMatch(in: text, range: range),
+              let r = Range(match.range(at: 1), in: text) else { return nil }
+        return String(text[r])
     }
 
     // MARK: - Type
@@ -111,7 +215,7 @@ enum NLTransactionParser {
         for kw in transferKeywords where text.contains(kw) { return .transfer }
         for kw in incomeKeywords where text.contains(kw) { return .income }
         for kw in expenseKeywords where text.contains(kw) { return .expense }
-        if text.contains("元") || text.contains("块") || text.contains("¥") {
+        if text.contains("元") || text.contains("块") || text.contains("¥") || text.contains("花了") || text.contains("买了") {
             return .expense
         }
         return nil
