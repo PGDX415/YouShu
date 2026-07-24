@@ -20,12 +20,40 @@ struct NLInputView: View {
     @State private var showReceiptScanner = false
     @FocusState private var isFocused: Bool
 
+    // User overrides for parser results
+    @State private var overrideCategory: Category?
+    @State private var overrideAccount: Account?
+    @State private var overrideDestinationAccount: Account?
+    @State private var overrideNote: String?
+
     private var currentMember: FamilyMember? {
         members.first(where: { $0.role == .creator })
     }
 
     private var parsed: ParsedTransaction {
         NLTransactionParser.parse(inputText, categories: categories, accounts: accounts)
+    }
+
+    // Effective values (override takes priority)
+    private var effectiveCategory: Category? {
+        overrideCategory ?? parsed.category
+    }
+
+    private var effectiveAccount: Account? {
+        overrideAccount ?? parsed.account
+    }
+
+    private var effectiveDestAccount: Account? {
+        overrideDestinationAccount ?? parsed.destinationAccount
+    }
+
+    private var effectiveNote: String? {
+        overrideNote ?? parsed.note
+    }
+
+    private var filteredCategories: [Category] {
+        guard let type = parsed.type, type != .transfer else { return [] }
+        return categories.filter { $0.type == type }
     }
 
     private var isReadyToSave: Bool {
@@ -202,21 +230,17 @@ struct NLInputView: View {
                 categoryRow
 
                 // Account
-                if let acc = parsed.account {
-                    accountRow(acc)
-                } else if parsed.type != .transfer {
-                    noAccountRow
+                if parsed.type != .transfer || accounts.count > 1 {
+                    accountRow
                 }
 
                 // Destination account (transfer)
-                if let dest = parsed.destinationAccount {
-                    destAccountRow(dest)
+                if parsed.type == .transfer {
+                    destAccountRow
                 }
 
                 // Note
-                if let note = parsed.note, !note.isEmpty {
-                    noteRow(note)
-                }
+                noteRow
             }
             .padding(16)
         }
@@ -266,23 +290,57 @@ struct NLInputView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             Spacer()
-            if let cat = parsed.category {
-                HStack(spacing: 6) {
-                    Image(systemName: cat.icon)
-                        .font(.caption)
-                        .foregroundColor(cat.color)
-                    Text(cat.name)
-                        .font(.subheadline.weight(.medium))
+            if parsed.type == .transfer {
+                Text("转账")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } else if !filteredCategories.isEmpty {
+                Menu {
+                    Button { overrideCategory = nil } label: {
+                        HStack {
+                            Text("自动识别")
+                            if overrideCategory == nil { Image(systemName: "checkmark") }
+                        }
+                    }
+                    ForEach(filteredCategories) { cat in
+                        Button { overrideCategory = cat } label: {
+                            HStack {
+                                Image(systemName: cat.icon).foregroundColor(cat.color)
+                                Text(cat.name)
+                                if effectiveCategory?.id == cat.id { Image(systemName: "checkmark") }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if let cat = effectiveCategory {
+                            Image(systemName: cat.icon)
+                                .font(.caption)
+                                .foregroundColor(cat.color)
+                            Text(cat.name)
+                                .font(.subheadline.weight(.medium))
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("未识别")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
             } else {
-                Text(parsed.type == .transfer ? "转账" : "未识别")
+                Text("未识别")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
         }
     }
 
-    private func accountRow(_ acc: Account) -> some View {
+    private var accountRow: some View {
         HStack {
             Image(systemName: "wallet.pass")
                 .foregroundColor(.accentColor)
@@ -290,30 +348,47 @@ struct NLInputView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             Spacer()
-            HStack(spacing: 4) {
-                Image(systemName: acc.icon)
-                    .font(.caption)
-                Text(acc.name)
-                    .font(.subheadline.weight(.medium))
+            Menu {
+                Button { overrideAccount = nil } label: {
+                    HStack {
+                        Text("自动识别")
+                        if overrideAccount == nil { Image(systemName: "checkmark") }
+                    }
+                }
+                ForEach(accounts) { acc in
+                    Button { overrideAccount = acc } label: {
+                        HStack {
+                            Image(systemName: acc.icon)
+                            Text(acc.name)
+                            if effectiveAccount?.id == acc.id { Image(systemName: "checkmark") }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    if let acc = effectiveAccount {
+                        Image(systemName: acc.icon)
+                            .font(.caption)
+                        Text(acc.name)
+                            .font(.subheadline.weight(.medium))
+                    } else {
+                        Text("默认账户")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }
 
     private var noAccountRow: some View {
-        HStack {
-            Image(systemName: "wallet.pass")
-                .foregroundColor(.secondary.opacity(0.5))
-            Text("账户")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Spacer()
-            Text("默认账户")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
+        accountRow
     }
 
-    private func destAccountRow(_ dest: Account) -> some View {
+    private var destAccountRow: some View {
         HStack {
             Image(systemName: "arrow.right.circle")
                 .foregroundColor(.accentColor)
@@ -321,27 +396,65 @@ struct NLInputView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             Spacer()
-            HStack(spacing: 4) {
-                Image(systemName: dest.icon)
-                    .font(.caption)
-                Text(dest.name)
-                    .font(.subheadline.weight(.medium))
+            Menu {
+                Button { overrideDestinationAccount = nil } label: {
+                    HStack {
+                        Text("自动识别")
+                        if overrideDestinationAccount == nil { Image(systemName: "checkmark") }
+                    }
+                }
+                ForEach(accounts.filter { $0.id != effectiveAccount?.id }) { acc in
+                    Button { overrideDestinationAccount = acc } label: {
+                        HStack {
+                            Image(systemName: acc.icon)
+                            Text(acc.name)
+                            if effectiveDestAccount?.id == acc.id { Image(systemName: "checkmark") }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    if let acc = effectiveDestAccount {
+                        Image(systemName: acc.icon)
+                            .font(.caption)
+                        Text(acc.name)
+                            .font(.subheadline.weight(.medium))
+                    } else {
+                        Text("选择账户")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }
 
-    private func noteRow(_ note: String) -> some View {
+    private var noteRow: some View {
         HStack(alignment: .top) {
             Image(systemName: "pencil.line")
                 .foregroundColor(.secondary.opacity(0.6))
             Text("备注")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+                .padding(.top, 4)
             Spacer()
-            Text(note)
-                .font(.subheadline)
-                .multilineTextAlignment(.trailing)
-                .foregroundColor(.primary)
+            TextField(
+                "添加备注",
+                text: Binding(
+                    get: { overrideNote ?? parsed.note ?? "" },
+                    set: { newValue in
+                        let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                        overrideNote = trimmed.isEmpty ? nil : trimmed
+                    }
+                ),
+                axis: .vertical
+            )
+            .font(.subheadline)
+            .multilineTextAlignment(.trailing)
+            .lineLimit(1...3)
         }
     }
 
@@ -366,22 +479,22 @@ struct NLInputView: View {
 
         let category: Category? = {
             if type == .transfer { return nil }
-            return parsed.category
+            return effectiveCategory
         }()
 
         let account: Account? = {
-            parsed.account ?? accounts.first(where: { $0.isDefault }) ?? accounts.first
+            effectiveAccount ?? accounts.first(where: { $0.isDefault }) ?? accounts.first
         }()
 
         let destAccount: Account? = {
-            type == .transfer ? parsed.destinationAccount : nil
+            type == .transfer ? effectiveDestAccount : nil
         }()
 
         let transaction = Transaction(
             amount: amount,
             type: type,
             date: Date(),
-            note: parsed.note ?? "",
+            note: effectiveNote ?? "",
             category: category,
             account: account,
             destinationAccount: destAccount,
