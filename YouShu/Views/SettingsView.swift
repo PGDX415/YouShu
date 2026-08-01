@@ -10,6 +10,9 @@ import LocalAuthentication
 struct SettingsView: View {
     @AppStorage("appLockEnabled") private var lockEnabled: Bool = false
     @AppStorage("appAppearance") private var appearance: Appearance = .system
+    @AppStorage("appPasscode") private var appPasscode: String = ""
+    @AppStorage("lockMethod") private var lockMethodRaw: Int = 0
+    @State private var showPasscodeSetup = false
 
     enum Appearance: Int, CaseIterable {
         case system = 0
@@ -60,8 +63,29 @@ struct SettingsView: View {
                     Toggle(isOn: $lockEnabled) {
                         Label("应用锁", systemImage: biometryIcon)
                     }
+
+                    if lockEnabled {
+                        Button {
+                            showPasscodeSetup = true
+                        } label: {
+                            HStack {
+                                Label(appPasscode.isEmpty ? "设置 App 密码" : "修改 App 密码",
+                                      systemImage: "key.fill")
+                                Spacer()
+                                if !appPasscode.isEmpty {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.green)
+                                }
+                            }
+                        }
+                        .foregroundColor(.primary)
+                    }
                 } header: {
                     Text("安全")
+                }
+                .sheet(isPresented: $showPasscodeSetup) {
+                    PasscodeSetupView()
                 }
 
                 Section {
