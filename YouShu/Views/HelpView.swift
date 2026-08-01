@@ -142,8 +142,9 @@ struct HelpView: View {
                         title: "应用锁",
                         content: """
                         在「设置 → 应用锁」中开启 Face ID / Touch ID 保护。
-                        
-                        开启后，每次进入 App 需要生物识别验证。
+
+                        开启后，每次进入 App 需要身份验证。
+                        支持 Face ID、Touch ID 和手机密码三种方式。
                         验证使用系统原生机制，不存储任何生物信息。
                         """
                     )
