@@ -57,43 +57,41 @@ struct LockView: View {
                         .padding(.horizontal, 32)
                 }
 
-                VStack(spacing: 14) {
-                    if !biometryName.isEmpty {
-                        Button {
-                            isManualAuth = true
-                            authenticate()
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: biometryName == "Face ID" ? "faceid" : "touchid")
-                                    .font(.title2)
-                                Text("使用 \(biometryName)")
-                                    .fontWeight(.medium)
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(RoundedRectangle(cornerRadius: 12).fill(Color.accentColor))
-                        }
-                    }
-
-                    Button {
-                        isManualAuth = true
-                        authenticateWithPasscode()
-                    } label: {
-                        HStack(spacing: 8) {
+                Button {
+                    isManualAuth = true
+                    authenticate()
+                } label: {
+                    HStack(spacing: 8) {
+                        if !biometryName.isEmpty {
+                            Image(systemName: biometryName == "Face ID" ? "faceid" : "touchid")
+                                .font(.title2)
+                        } else {
                             Image(systemName: "key.fill")
-                                .font(.title3)
-                            Text("使用密码")
-                                .fontWeight(.medium)
+                                .font(.title2)
                         }
-                        .foregroundColor(.accentColor)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.accentColor, lineWidth: 1.5))
+                        Text("解锁")
+                            .fontWeight(.semibold)
                     }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.accentColor))
                 }
                 .padding(.horizontal, 48)
+
+                VStack(spacing: 4) {
+                    if !biometryName.isEmpty {
+                        Text("面容/指纹验证，或点按「输入密码」使用手机密码")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    } else {
+                        Text("使用手机密码验证身份")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.horizontal, 32)
 
                 if authError != nil {
                     Button("重试") { authenticate() }
@@ -177,39 +175,6 @@ struct LockView: View {
         cancelAuth()
         Task { @MainActor in
             performAuth()
-        }
-    }
-
-    /// Explicit passcode authentication.
-    private func authenticateWithPasscode() {
-        cancelAuth()
-        authError = nil
-        let context = LAContext()
-        // Hide the system fallback button (we provide our own)
-        context.localizedFallbackTitle = ""
-
-        var nsError: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &nsError) else {
-            authError = laErrorMessage(nsError)
-            return
-        }
-
-        context.evaluatePolicy(.deviceOwnerAuthentication,
-                               localizedReason: "输入手机密码以解锁有数") { success, error in
-            DispatchQueue.main.async {
-                if success {
-                    onUnlock()
-                } else if let laError = error as? LAError {
-                    switch laError.code {
-                    case .userCancel, .systemCancel, .appCancel:
-                        authError = "已取消验证"
-                    default:
-                        authError = laErrorMessage(error as NSError?)
-                    }
-                } else {
-                    authError = laErrorMessage(error as NSError?)
-                }
-            }
         }
     }
 

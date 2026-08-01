@@ -141,10 +141,11 @@ struct HelpView: View {
                         icon: "lock.shield.fill", color: .indigo,
                         title: "应用锁",
                         content: """
-                        在「设置 → 应用锁」中开启 Face ID / Touch ID 保护。
+                        在「设置 → 应用锁」中开启身份验证保护。
 
-                        开启后，每次进入 App 需要身份验证。
-                        支持 Face ID、Touch ID 和手机密码三种方式。
+                        开启后，每次进入 App 需要验证身份。
+                        支持 Face ID、Touch ID，也可在验证弹窗中
+                        点击「输入密码」使用手机密码解锁。
                         验证使用系统原生机制，不存储任何生物信息。
                         """
                     )
